@@ -7,9 +7,14 @@ chain from raw IW SLCs to a deformation velocity field:
 
 **Sentinel-1 TOPS SLC → SNAP GPT interferometric processing → SNAPHU unwrapping → MintPy SBAS inversion**
 
-Everything runs from a single Tkinter GUI. Heavy interferogram processing can be
-fanned out across a cluster of workstations over SSH, sharing one project
-directory on common storage. Command-line tools cover cluster monitoring,
+Everything runs from a single Tkinter GUI. The headline feature is LAN-scale
+distributed processing: with several workstations on the same network and one
+`~/.ssh/config` entry per machine, the GUI fans interferogram pairs out to all of
+them concurrently, cutting wall-clock time roughly in proportion to the number of
+healthy nodes. The one hard prerequisite is shared storage — every workstation
+must mount the same NAS at the same path (e.g. `/mnt/SARDB/snap2mintpy/project`),
+because all intermediate and final products are written there. See
+[Cluster setup](#cluster-setup). Command-line tools cover cluster monitoring,
 GNSS cross-validation, corner-reflector analysis, and a HyP3 cloud alternative
 to local SNAP processing.
 
@@ -265,6 +270,60 @@ Per-node requirements:
    sudo mkswap ~/snap_swap.img
    sudo swapon ~/snap_swap.img
    ```
+
+### Adding a worker workstation (step by step)
+
+The master is set up and you want a new machine (`worker01`) to share the load:
+
+1. **Mount the same NAS at the same path as the master** — hard requirement;
+   every intermediate and final product is written there. Example `/etc/fstab`
+   entry on the worker:
+
+   ```
+   //nas.local/SARDB  /mnt/SARDB  cifs  credentials=/home/your_user/.smbcred,uid=1000,iocharset=utf8  0  0
+   ```
+
+   Keep the repo itself on the NAS (e.g. `/mnt/SARDB/snap2mintpy/`): every node
+   then sees the same code and the same project directory automatically —
+   nothing to copy per node.
+
+2. **Install the runtime on the worker**, same as [Installation](#installation)
+   on the master:
+   - ESA SNAP (so `gpt` runs) and SNAPHU
+   - Miniconda + an environment with MintPy and the required Python packages
+   - If `gpt` is not on the login shell's `$PATH`, export it from
+     `~/FastISCE.config` on the worker — the master's remote command sources
+     that file before starting the worker process.
+
+3. **Set up password-less SSH from the master** and give the worker an alias:
+
+   ```bash
+   ssh-keygen -t ed25519                  # once, if you have no key yet
+   ssh-copy-id your_user@192.168.1.101
+   ```
+
+   ```
+   # ~/.ssh/config on the master
+   Host worker01
+       HostName 192.168.1.101
+       User your_user
+   ```
+
+4. **Verify from the master** — both must succeed without a password prompt:
+
+   ```bash
+   ssh worker01 'source ~/FastISCE.config 2>/dev/null; gpt -h | head -1'
+   ssh worker01 'ls /mnt/SARDB/snap2mintpy/'
+   ```
+
+5. **Tick the host in the GUI** — Tab 2 automatically lists every `Host` alias
+   found in `~/.ssh/config`. Check `worker01`, enable cluster mode and run;
+   monitor via the per-host log tabs or `cluster_progress.py`.
+
+Repeat for each additional workstation — the more healthy nodes you check, the
+more pairs run in parallel.
+
+### Scheduling behaviour
 
 The master splits pairs across hosts and supports **work-stealing** (idle hosts
 claim remaining pairs). Only the first host builds the DEM, to avoid a race. Each
