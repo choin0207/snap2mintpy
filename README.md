@@ -26,6 +26,9 @@ to local SNAP processing.
 
 ### GUI (`snap2mintpy_gui.py`) — five tabs
 
+The interface is bilingual (English / Traditional Chinese): pick a language at
+first launch; the choice is remembered per working directory.
+
 1. **Input & Pairing** — Configure project, SNAP install, SLC/DEM paths, and AOI.
    Download SLCs from ASF (reads `~/.netrc`). Design the SBAS network with
    Nearest-N pairing or a custom day span, with a perpendicular-baseline filter.

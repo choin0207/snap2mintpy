@@ -16,6 +16,8 @@ Sentinel-1 TOPS SBAS 時間序列分析的一站式 GUI 工具，串起從原始
 
 ### GUI（`snap2mintpy_gui.py`）— 五個分頁
 
+介面支援中英雙語：首次啟動時選擇語言，選擇會依工作目錄記住。
+
 1. **輸入與配對** — 設定專案、SNAP 安裝路徑、SLC/DEM 路徑與 AOI；從 ASF 下載 SLC（讀取 `~/.netrc`）；以 Nearest-N 或自選天數設計 SBAS 網路，並套用垂直基線篩選；預覽基線網路圖、手動選擇 IW 子帶。
 2. **執行 SNAP + 叢集** — 執行 SNAP GPT 管線（split → 干涉圖 → SNAPHU → 地理編碼）；單機／叢集模式切換；即時進度條與逐機 log 分頁；SSD swapfile 管理；work-stealing 派工。
 3. **MintPy** — 編輯 `smallbaselineApp.cfg`，透過內建終端一鍵執行 `smallbaselineApp.py`，並將結果匯出成 GeoTIFF。
