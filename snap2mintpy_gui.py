@@ -225,9 +225,11 @@ def _pip_install(package: str) -> Tuple[bool, str]:
 
     # Fall back to sudo pip install (僅在有設定 SNAP2MINTPY_SUDO_PASS 時)
     if not _SUDO_PASS:
-        return False, (f'pip --user 安裝 {package} 失敗，且未設定 '
+        return False, ((f'pip --user 安裝 {package} 失敗，且未設定 '
                        f'SNAP2MINTPY_SUDO_PASS 環境變數 → 跳過 sudo。\n'
-                       f'請手動執行: pip install {package}')
+                       f'請手動執行: pip install {package}' if LANG == 'zh' else f'pip --user install {package} failed, and SNAP2MINTPY_SUDO_PASS env var not set '
+                       f'→ skip sudo.\n'
+                       f'Please run manually: pip install {package}'))
     sudo_cmd = ['sudo', '-S', sys.executable, '-m', 'pip', 'install', '-q', package]
     result = subprocess.run(sudo_cmd, input=_SUDO_PASS + '\n',
                             capture_output=True, text=True, timeout=120)
@@ -539,7 +541,7 @@ def _make_log(parent: tk.Widget, height: int = 12,
     menu.add_command(label=_T('btn_copy_sel'), command=_copy_sel)
     menu.add_command(label=_T('btn_copy_all'), command=_copy_all)
     menu.add_separator()
-    menu.add_command(label='清除', command=lambda: text.delete('1.0', 'end'))
+    menu.add_command(label=('清除' if LANG == 'zh' else 'Clear'), command=lambda: text.delete('1.0', 'end'))
     text.bind('<Button-3>',
               lambda e: menu.tk_popup(e.x_root, e.y_root))
     return text
@@ -996,18 +998,18 @@ def repair_safe_from_zip(safe_dir: Path, zip_path: Path,
                     to_extract.append(m)
             if not to_extract:
                 if log_fn:
-                    log_fn(f'[repair] {safe_name}: 無缺漏檔案\n')
+                    log_fn((f'[repair] {safe_name}: 無缺漏檔案\n' if LANG == 'zh' else f'[repair] {safe_name}: no missing files\n'))
             else:
                 if log_fn:
-                    log_fn(f'[repair] 從 zip 補齊 {len(to_extract)} 個缺漏檔案 ...\n')
+                    log_fn((f'[repair] 從 zip 補齊 {len(to_extract)} 個缺漏檔案 ...\n' if LANG == 'zh' else f'[repair] filling {len(to_extract)} missing files from zip ...\n'))
                 z.extractall(safe_dir.parent, members=to_extract)
         ok, reason = validate_slc(str(safe_dir))
         if log_fn:
-            log_fn(f'[repair] {"✓ 修復完成" if ok else f"✗ 仍有問題: {reason}"}\n')
+            log_fn((f'[repair] {"✓ 修復完成" if ok else f"✗ 仍有問題: {reason}"}\n' if LANG == 'zh' else f'[repair] {"✓ Repair complete" if ok else f"✗ still has issues: {reason}"}\n'))
         return ok
     except Exception as exc:
         if log_fn:
-            log_fn(f'[repair] 失敗: {exc}\n')
+            log_fn((f'[repair] 失敗: {exc}\n' if LANG == 'zh' else f'[repair] failed: {exc}\n'))
         return False
 
 
@@ -1061,7 +1063,7 @@ def check_slc_completeness(slc_dir: str,
                     if reasons:
                         result[d] = ' | '.join(reasons)
                     elif offtrack:
-                        result[d] = 'n/a (off-track: 影像不覆蓋 AOI)'
+                        result[d] = ('n/a (off-track: 影像不覆蓋 AOI)' if LANG == 'zh' else 'n/a (off-track: image does not cover AOI)')
                     else:
                         result[d] = 'missing'
                 else:
@@ -1107,7 +1109,7 @@ def check_slc_completeness(slc_dir: str,
 
         if not iw_candidates:
             if non_iw:
-                result[d] = f'IW SLC 不存在（找到非IW產品: {non_iw[0].name}）'
+                result[d] = (f'IW SLC 不存在（找到非IW產品: {non_iw[0].name}）' if LANG == 'zh' else f'IW SLC not found (found non-IW product: {non_iw[0].name})')
             else:
                 result[d] = 'missing'
             continue
@@ -1157,19 +1159,19 @@ def download_slc_from_asf(date: str, dest_dir: str,
         import asf_search as asf
     except ImportError:
         if log_fn:
-            log_fn('[ASF] asf_search 未安裝，自動安裝中...\n')
+            log_fn(('[ASF] asf_search 未安裝，自動安裝中...\n' if LANG == 'zh' else '[ASF] asf_search not installed, auto-installing...\n'))
         ok, out = _pip_install('asf-search')
         if not ok:
             if log_fn:
-                log_fn(f'[ASF] 安裝失敗: {out[-200:]}\n')
+                log_fn((f'[ASF] 安裝失敗: {out[-200:]}\n' if LANG == 'zh' else f'[ASF] install failed: {out[-200:]}\n'))
             return None
         import asf_search as asf  # type: ignore[import]
         if log_fn:
-            log_fn('[ASF] asf_search 安裝完成\n')
+            log_fn(('[ASF] asf_search 安裝完成\n' if LANG == 'zh' else '[ASF] asf_search installed\n'))
 
     try:
         if log_fn:
-            log_fn(f'[ASF] 搜尋 {platform} date={date} ...\n')
+            log_fn((f'[ASF] 搜尋 {platform} date={date} ...\n' if LANG == 'zh' else f'[ASF] searching {platform} date={date} ...\n'))
         opts = dict(platform=[platform], processingLevel='SLC',
                     start=_asf_iso_day(date, end=False),
                     end=_asf_iso_day(date, end=True))
@@ -1178,12 +1180,12 @@ def download_slc_from_asf(date: str, dest_dir: str,
         results = asf.search(**opts)
         if not results:
             if log_fn:
-                log_fn(f'[ASF] 找不到 {date} 的場景\n')
+                log_fn((f'[ASF] 找不到 {date} 的場景\n' if LANG == 'zh' else f'[ASF] no scene found for {date}\n'))
             return None
 
         granule = results[0]
         if log_fn:
-            log_fn(f'[ASF] 找到: {granule.properties["fileID"]}\n')
+            log_fn((f'[ASF] 找到: {granule.properties["fileID"]}\n' if LANG == 'zh' else f'[ASF] found: {granule.properties["fileID"]}\n'))
 
         # asf_search ≤8.0.1 checks old cookie names ('urs_user_already_logged')
         # but the server now returns 'asf-urs'/'urs-access-token'.
@@ -1199,14 +1201,14 @@ def download_slc_from_asf(date: str, dest_dir: str,
             downloaded = list(dest.glob(f'*{date}*.SAFE'))
         if downloaded:
             if log_fn:
-                log_fn(f'[ASF] 下載完成: {downloaded[0]}\n')
+                log_fn((f'[ASF] 下載完成: {downloaded[0]}\n' if LANG == 'zh' else f'[ASF] download complete: {downloaded[0]}\n'))
             return str(downloaded[0])
         if log_fn:
-            log_fn('[ASF] 下載後找不到檔案\n')
+            log_fn(('[ASF] 下載後找不到檔案\n' if LANG == 'zh' else '[ASF] file not found after download\n'))
         return None
     except Exception as exc:
         if log_fn:
-            log_fn(f'[ASF] 下載失敗: {exc}\n')
+            log_fn((f'[ASF] 下載失敗: {exc}\n' if LANG == 'zh' else f'[ASF] download failed: {exc}\n'))
         return None
 
 
@@ -1239,8 +1241,8 @@ def query_asf_dates(start_date: str, end_date: str,
     # 空/非法 WKT 會讓 asf.search 長時間卡住而非快速失敗 → 先擋掉
     if not wkt or 'POLYGON' not in str(wkt).upper():
         if log_fn:
-            log_fn('[ASF] 查詢失敗: AOI WKT 為空或非法 '
-                   '(請確認已設定 AOI 範圍)\n')
+            log_fn(('[ASF] 查詢失敗: AOI WKT 為空或非法 '
+                   '(請確認已設定 AOI 範圍)\n' if LANG == 'zh' else '[ASF] query failed: AOI WKT is empty or invalid (please confirm AOI range is set)\n'))
         return None
 
     try:
@@ -1248,8 +1250,8 @@ def query_asf_dates(start_date: str, end_date: str,
         e = _asf_iso_day(end_date, end=True)
         if s is None or e is None:
             if log_fn:
-                log_fn(f'[ASF] 查詢失敗: 日期格式無法解析 '
-                       f'(start={start_date!r}, end={end_date!r})\n')
+                log_fn((f'[ASF] 查詢失敗: 日期格式無法解析 '
+                       f'(start={start_date!r}, end={end_date!r})\n' if LANG == 'zh' else f'[ASF] query failed: could not parse date format (start={start_date!r}, end={end_date!r})\n'))
             return None
         opts: dict = dict(platform=[platform], processingLevel=['SLC'],
                           beamMode=['IW'], intersectsWith=wkt, start=s, end=e)
@@ -1259,7 +1261,7 @@ def query_asf_dates(start_date: str, end_date: str,
             opts['relativeOrbit'] = [relative_orbit]
         if log_fn:
             orb_note = f'  orbit={relative_orbit}' if relative_orbit else ''
-            log_fn(f'[ASF] 查詢 {platform} IW SLC {start_date}~{end_date}{orb_note} ...\n')
+            log_fn((f'[ASF] 查詢 {platform} IW SLC {start_date}~{end_date}{orb_note} ...\n' if LANG == 'zh' else f'[ASF] querying {platform} IW SLC {start_date}~{end_date}{orb_note} ...\n'))
         results = asf.search(**opts)
         dates: set = set()
         for r in results:
@@ -1270,7 +1272,7 @@ def query_asf_dates(start_date: str, end_date: str,
         return sorted(dates)
     except Exception as exc:
         if log_fn:
-            log_fn(f'[ASF] 查詢失敗: {exc}\n')
+            log_fn((f'[ASF] 查詢失敗: {exc}\n' if LANG == 'zh' else f'[ASF] query failed: {exc}\n'))
         return None
 
 
@@ -1471,7 +1473,7 @@ def download_snap_dem(lon_min: float, lat_min: float,
         from osgeo import gdal
     except ImportError:
         if log_fn:
-            log_fn('[DEM] osgeo/gdal 未安裝，無法自動下載\n')
+            log_fn(('[DEM] osgeo/gdal 未安裝，無法自動下載\n' if LANG == 'zh' else '[DEM] osgeo/gdal not installed, cannot auto-download\n'))
         return None
 
     pad = 0.1
@@ -1481,7 +1483,7 @@ def download_snap_dem(lon_min: float, lat_min: float,
     tif = out_path / f'snap_dem_{w:.3f}_{s:.3f}_{e:.3f}_{n:.3f}.tif'
     if tif.exists():
         if log_fn:
-            log_fn(f'[DEM] 已存在，重複使用: {tif}\n')
+            log_fn((f'[DEM] 已存在，重複使用: {tif}\n' if LANG == 'zh' else f'[DEM] already exists, reusing: {tif}\n'))
         return str(tif)
 
     def _aws_url(la: int, lo: int) -> str:
@@ -1502,11 +1504,11 @@ def download_snap_dem(lon_min: float, lat_min: float,
 
     if not srcs:
         if log_fn:
-            log_fn('[DEM] 找不到 GLO-30 tile，請確認網路或 AWS_NO_SIGN_REQUEST\n')
+            log_fn(('[DEM] 找不到 GLO-30 tile，請確認網路或 AWS_NO_SIGN_REQUEST\n' if LANG == 'zh' else '[DEM] GLO-30 tile not found, please check network or AWS_NO_SIGN_REQUEST\n'))
         return None
 
     if log_fn:
-        log_fn(f'[DEM] 合併 {len(srcs)} tile → {tif}\n')
+        log_fn((f'[DEM] 合併 {len(srcs)} tile → {tif}\n' if LANG == 'zh' else f'[DEM] merging {len(srcs)} tiles → {tif}\n'))
 
     vrt = str(tif.with_suffix('.vrt'))
     gdal.BuildVRT(vrt, srcs)
@@ -1521,7 +1523,7 @@ def download_snap_dem(lon_min: float, lat_min: float,
 
     if tif.exists():
         if log_fn:
-            log_fn(f'[DEM] 完成: {tif}\n')
+            log_fn((f'[DEM] 完成: {tif}\n' if LANG == 'zh' else f'[DEM] done: {tif}\n'))
         return str(tif)
     return None
 
@@ -2016,7 +2018,7 @@ def plot_baseline_network(
         # 無 pair → 回空圖 (避免 all_pair_dates[0] IndexError)
         fig = Figure(figsize=(10, 5), constrained_layout=True)
         ax = fig.add_subplot(111)
-        ax.text(0.5, 0.5, '(無干涉對)', ha='center', va='center')
+        ax.text(0.5, 0.5, ('(無干涉對)' if LANG == 'zh' else '(no pairs)'), ha='center', va='center')
         ax.set_axis_off()
         return (fig, {}) if return_edges else fig
 
@@ -2165,10 +2167,10 @@ def plot_baseline_network(
         proc_n = sum(1 for r, s in pairs if f'{r}_{s}' in processed_set)
         pend_n = len(pairs) - proc_n
         _status_handles = [
-            Line2D([0], [0], color='#00cc44', lw=3, label=f'已完成 Done ({proc_n})'),
-            Line2D([0], [0], color='#cccccc', lw=3, label=f'未處理 Pending ({pend_n})'),
-            Line2D([0], [0], color='#ff8c00', lw=3, label='處理中 Running (0)'),
-            Line2D([0], [0], color='#ff4444', lw=3, label='失敗 Failed (0)'),
+            Line2D([0], [0], color='#00cc44', lw=3, label=(f'已完成 Done ({proc_n})' if LANG == 'zh' else f'Done ({proc_n})')),
+            Line2D([0], [0], color='#cccccc', lw=3, label=(f'未處理 Pending ({pend_n})' if LANG == 'zh' else f'Pending ({pend_n})')),
+            Line2D([0], [0], color='#ff8c00', lw=3, label=('處理中 Running (0)' if LANG == 'zh' else 'Running (0)')),
+            Line2D([0], [0], color='#ff4444', lw=3, label=('失敗 Failed (0)' if LANG == 'zh' else 'Failed (0)')),
         ]
         # 用獨立 Legend 物件 + add_artist 只加「一次」。
         # 不可用 `ax.legend(...)` 再接 `ax.add_artist(proc_leg)`: ax.legend() 本身
@@ -2337,7 +2339,7 @@ def _create_swapfile(img_path: str, size: str,
     except Exception as e:
         return False, f'[ERROR] mkdir: {e}'
     if p.exists():
-        return False, f'[SKIP] 已存在: {img_path}'
+        return False, (f'[SKIP] 已存在: {img_path}' if LANG == 'zh' else f'[SKIP] already exists: {img_path}')
     rc, out = _run_sudo_cmd(['fallocate', '-l', size, img_path],
                             sudo_pass, timeout=600)
     if rc != 0:
@@ -2346,29 +2348,29 @@ def _create_swapfile(img_path: str, size: str,
     rc, out = _run_sudo_cmd(['mkswap', img_path], sudo_pass)
     if rc != 0:
         return False, f'[ERROR] mkswap: {out}'
-    return True, f'[OK] 建立完成: {img_path}'
+    return True, (f'[OK] 建立完成: {img_path}' if LANG == 'zh' else f'[OK] created: {img_path}')
 
 
 def _enable_swap(img_path: str, sudo_pass: str) -> Tuple[bool, str]:
     active, _ = _swap_status(img_path)
     if active:
-        return True, f'[OK] 已在使用中: {img_path}'
+        return True, (f'[OK] 已在使用中: {img_path}' if LANG == 'zh' else f'[OK] already in use: {img_path}')
     if not Path(img_path).exists():
-        return False, f'[ERROR] Swapfile 不存在: {img_path}'
+        return False, (f'[ERROR] Swapfile 不存在: {img_path}' if LANG == 'zh' else f'[ERROR] swapfile does not exist: {img_path}')
     rc, out = _run_sudo_cmd(['swapon', img_path], sudo_pass)
     if rc != 0:
         return False, f'[ERROR] swapon: {out}'
-    return True, f'[OK] Swap 已啟用: {img_path}'
+    return True, (f'[OK] Swap 已啟用: {img_path}' if LANG == 'zh' else f'[OK] swap enabled: {img_path}')
 
 
 def _disable_swap(img_path: str, sudo_pass: str) -> Tuple[bool, str]:
     active, _ = _swap_status(img_path)
     if not active:
-        return True, '[OK] Swap 未啟用，無需停用'
+        return True, ('[OK] Swap 未啟用，無需停用' if LANG == 'zh' else '[OK] swap not enabled, no need to disable')
     rc, out = _run_sudo_cmd(['swapoff', img_path], sudo_pass)
     if rc != 0:
         return False, f'[ERROR] swapoff: {out}'
-    return True, f'[OK] Swap 已停用: {img_path}'
+    return True, (f'[OK] Swap 已停用: {img_path}' if LANG == 'zh' else f'[OK] swap disabled: {img_path}')
 
 
 
@@ -2831,7 +2833,7 @@ def apply_smart_ml(ml_dim: str, sml_dim: str, n: int, log_fn=None) -> bool:
     sml_bands = _bands(sml_dim)
     if not ml_bands or not sml_bands:
         if log_fn:
-            log_fn('[SML] 無法解析 ml/sml 波段資訊\n')
+            log_fn(('[SML] 無法解析 ml/sml 波段資訊\n' if LANG == 'zh' else '[SML] cannot parse ml/sml band info\n'))
         return False
 
     def _find(bands: List[dict], prefix: str) -> Optional[dict]:
@@ -2848,7 +2850,7 @@ def apply_smart_ml(ml_dim: str, sml_dim: str, n: int, log_fn=None) -> bool:
                         _find(sml_bands, 'coh_'))
     if None in (ml_i, ml_q, ml_c, sm_i, sm_q, sm_c):
         if log_fn:
-            log_fn('[SML] 找不到 i_ifg/q_ifg/coh 波段\n')
+            log_fn(('[SML] 找不到 i_ifg/q_ifg/coh 波段\n' if LANG == 'zh' else '[SML] i_ifg/q_ifg/coh bands not found\n'))
         return False
 
     def _read(data_dir: 'Path', info: dict) -> Optional['np.ndarray']:
@@ -2869,7 +2871,7 @@ def apply_smart_ml(ml_dim: str, sml_dim: str, n: int, log_fn=None) -> bool:
     c_full = _read(ml_data, ml_c)
     if i_full is None or q_full is None or c_full is None:
         if log_fn:
-            log_fn('[SML] 讀取 ml .img 失敗\n')
+            log_fn(('[SML] 讀取 ml .img 失敗\n' if LANG == 'zh' else '[SML] failed to read ml .img\n'))
         return False
 
     new_i, new_q, new_c = block_max_coh_decimate(i_full, q_full, c_full, n)
@@ -2878,11 +2880,11 @@ def apply_smart_ml(ml_dim: str, sml_dim: str, n: int, log_fn=None) -> bool:
     th, tw = sm_i['h'], sm_i['w']
     if new_i.shape != (th, tw):
         if log_fn:
-            log_fn(f'[SML] 尺寸對齊 {new_i.shape} → ({th},{tw})\n')
+            log_fn((f'[SML] 尺寸對齊 {new_i.shape} → ({th},{tw})\n' if LANG == 'zh' else f'[SML] resizing {new_i.shape} → ({th},{tw})\n'))
         new_i, new_q, new_c = new_i[:th, :tw], new_q[:th, :tw], new_c[:th, :tw]
         if new_i.shape != (th, tw):
             if log_fn:
-                log_fn('[SML] 尺寸無法對齊，放棄覆寫\n')
+                log_fn(('[SML] 尺寸無法對齊，放棄覆寫\n' if LANG == 'zh' else '[SML] cannot align size, aborting overwrite\n'))
             return False
 
     def _write(info: dict, arr: 'np.ndarray'):
@@ -2893,13 +2895,13 @@ def apply_smart_ml(ml_dim: str, sml_dim: str, n: int, log_fn=None) -> bool:
                 img = cand[0]
         arr.astype('>f4').tofile(str(img))
         if log_fn:
-            log_fn(f'[SML] 覆寫 {img.name} ({arr.shape[1]}×{arr.shape[0]})\n')
+            log_fn((f'[SML] 覆寫 {img.name} ({arr.shape[1]}×{arr.shape[0]})\n' if LANG == 'zh' else f'[SML] overwriting {img.name} ({arr.shape[1]}×{arr.shape[0]})\n'))
 
     _write(sm_i, new_i)
     _write(sm_q, new_q)
     _write(sm_c, new_c)
     if log_fn:
-        log_fn(f'[SML] max-coh 覆寫完成 n={n}\n')
+        log_fn((f'[SML] max-coh 覆寫完成 n={n}\n' if LANG == 'zh' else f'[SML] max-coh overwrite complete n={n}\n'))
     return True
 
 
@@ -2970,7 +2972,7 @@ def gapfill_low_coh_phase(phase_img: str, coh_img: str, width: int,
     phase = np.fromfile(phase_img, dtype=dt)
     if width <= 0 or phase.size % width or phase.size != coh.size:
         if log_fn:
-            log_fn('[nan] phase/coh 尺寸不符，跳過 gap-fill\n')
+            log_fn(('[nan] phase/coh 尺寸不符，跳過 gap-fill\n' if LANG == 'zh' else '[nan] phase/coh size mismatch, skipping gap-fill\n'))
         return None, (dt == ">f4")
     h = phase.size // width
     phase = phase.reshape(h, width).astype(np.float64)
@@ -2979,14 +2981,14 @@ def gapfill_low_coh_phase(phase_img: str, coh_img: str, width: int,
     valid = ~mask & np.isfinite(phase)
     if not mask.any() or valid.sum() < 4:
         if log_fn:
-            log_fn(f'[nan] 無需/無法 gap-fill (mask={int(mask.sum())}, '
-                   f'valid={int(valid.sum())})\n')
+            log_fn((f'[nan] 無需/無法 gap-fill (mask={int(mask.sum())}, '
+                   f'valid={int(valid.sum())})\n' if LANG == 'zh' else f'[nan] no gap-fill needed/possible (mask={int(mask.sum())}, valid={int(valid.sum())})\n'))
         return mask, (dt == ">f4")
     try:
         from scipy.interpolate import griddata
     except ImportError:
         if log_fn:
-            log_fn('[nan] 無 scipy，跳過 gap-fill (snaphu 用原始相位)\n')
+            log_fn(('[nan] 無 scipy，跳過 gap-fill (snaphu 用原始相位)\n' if LANG == 'zh' else '[nan] no scipy, skipping gap-fill (snaphu uses raw phase)\n'))
         return mask, (dt == ">f4")
     yy, xx = np.indices((h, width))
     pts  = np.column_stack([yy[valid], xx[valid]])
@@ -3001,7 +3003,7 @@ def gapfill_low_coh_phase(phase_img: str, coh_img: str, width: int,
     phase[mask] = np.arctan2(sin_i, cos_i)              # ∈ (-π, π]
     phase.astype(dt).tofile(phase_img)
     if log_fn:
-        log_fn(f'[nan] gap-fill 完成: {int(mask.sum())} 像素 (coh<{coh_min})\n')
+        log_fn((f'[nan] gap-fill 完成: {int(mask.sum())} 像素 (coh<{coh_min})\n' if LANG == 'zh' else f'[nan] gap-fill complete: {int(mask.sum())} pixels (coh<{coh_min})\n'))
     return mask, (dt == ">f4")
 
 
@@ -3019,13 +3021,13 @@ def mask_low_coh_to_nan(unw_img: str, coh_img: str, coh_min: float,
     coh = np.fromfile(coh_img, dtype=dt)
     if unw.size != coh.size:
         if log_fn:
-            log_fn('[nan] unw/coh 尺寸不符，跳過遮罩\n')
+            log_fn(('[nan] unw/coh 尺寸不符，跳過遮罩\n' if LANG == 'zh' else '[nan] unw/coh size mismatch, skipping mask\n'))
         return False
     m = coh < coh_min
     unw[m] = np.nan
     unw.astype(dt).tofile(unw_img)
     if log_fn:
-        log_fn(f'[nan] 解纏遮罩: {int(m.sum())} 像素設為 NaN (coh<{coh_min})\n')
+        log_fn((f'[nan] 解纏遮罩: {int(m.sum())} 像素設為 NaN (coh<{coh_min})\n' if LANG == 'zh' else f'[nan] unwrap mask: {int(m.sum())} pixels set to NaN (coh<{coh_min})\n'))
     return True
 
 
@@ -3087,7 +3089,7 @@ def fill_phase_by_mode(phase, coh, coh_min: float, mode: str = 'linear',
         from scipy.interpolate import griddata
     except ImportError:
         if log_fn:
-            log_fn('[nan] 無 scipy，mode 退回 none\n')
+            log_fn(('[nan] 無 scipy，mode 退回 none\n' if LANG == 'zh' else '[nan] no scipy, mode falls back to none\n'))
         return _ret(out)
     yy, xx = np.indices((h, w))
     pts  = np.column_stack([yy[valid], xx[valid]])
@@ -3108,7 +3110,7 @@ def fill_phase_by_mode(phase, coh, coh_min: float, mode: str = 'linear',
             out = np.arctan2(s, c)
         except ImportError:
             if log_fn:
-                log_fn('[nan] 無 scipy.ndimage，smooth 退回 linear\n')
+                log_fn(('[nan] 無 scipy.ndimage，smooth 退回 linear\n' if LANG == 'zh' else '[nan] no scipy.ndimage, smooth falls back to linear\n'))
     return _ret(out)
 
 
@@ -3127,8 +3129,8 @@ def save_preunwrap_qc(phase_orig, phase_used, coh, out_png: str,
         return np.arctan2(np.sin(a), np.cos(a))   # 顯示用包裹到 -π..π
 
     panels = [
-        ('原始 wrap phase',        _wrap(phase_orig), 'twilight', (-np.pi, np.pi)),
-        (f'送 snaphu wrap ({mode})', _wrap(phase_used), 'twilight', (-np.pi, np.pi)),
+        (('原始 wrap phase' if LANG == 'zh' else 'Original wrap phase'),        _wrap(phase_orig), 'twilight', (-np.pi, np.pi)),
+        ((f'送 snaphu wrap ({mode})' if LANG == 'zh' else f'wrap sent to snaphu ({mode})'), _wrap(phase_used), 'twilight', (-np.pi, np.pi)),
         ('coherence',              coh,               'viridis',  (0, 1)),
     ]
     fig, axes = plt.subplots(1, 3, figsize=(11, 3.4))
@@ -3200,7 +3202,7 @@ def make_single_band_product(src_dim: str, dst_dim: str, src_band_prefix: str,
         root = tree.getroot()
     except Exception as exc:
         if log_fn:
-            log_fn(f'[mintpy] 解析 {src_dim.name} 失敗: {exc}\n')
+            log_fn((f'[mintpy] 解析 {src_dim.name} 失敗: {exc}\n' if LANG == 'zh' else f'[mintpy] failed to parse {src_dim.name}: {exc}\n'))
         return False
 
     ii = root.find('.//Image_Interpretation')
@@ -3211,7 +3213,7 @@ def make_single_band_product(src_dim: str, dst_dim: str, src_band_prefix: str,
             break
     if target is None:
         if log_fn:
-            log_fn(f'[mintpy] 找不到波段 {src_band_prefix} in {src_dim.name}\n')
+            log_fn((f'[mintpy] 找不到波段 {src_band_prefix} in {src_dim.name}\n' if LANG == 'zh' else f'[mintpy] band {src_band_prefix} not found in {src_dim.name}\n'))
         return False
 
     src_band = target.findtext('BAND_NAME')
@@ -3303,11 +3305,11 @@ def normalize_to_mintpy(wrapped_tc_dim: str, unw_tc_dim, pair_name: str,
         else:
             ok = False
             if log_fn:
-                log_fn('[mintpy] 讀不到 i_ifg 尺寸，filt_tc 失敗\n')
+                log_fn(('[mintpy] 讀不到 i_ifg 尺寸，filt_tc 失敗\n' if LANG == 'zh' else '[mintpy] cannot read i_ifg size, filt_tc failed\n'))
     else:
         ok = False
         if log_fn:
-            log_fn('[mintpy] 找不到 i_ifg/q_ifg，無法產生 filt_tc\n')
+            log_fn(('[mintpy] 找不到 i_ifg/q_ifg，無法產生 filt_tc\n' if LANG == 'zh' else '[mintpy] i_ifg/q_ifg not found, cannot generate filt_tc\n'))
 
     # unw_tc：抽 Unw_Phase 波段，並用地理編碼後 coh 把低同調設 NaN
     if unw_tc_dim and Path(unw_tc_dim).exists():
@@ -3395,7 +3397,7 @@ class SnapPairWorker(threading.Thread):
             if self._cancel.is_set():
                 return -2
             if attempt > 1:
-                self._log(f'  ↻ gpt 重試 {attempt}/{_GPT_MAX_ATTEMPTS}\n')
+                self._log((f'  ↻ gpt 重試 {attempt}/{_GPT_MAX_ATTEMPTS}\n' if LANG == 'zh' else f'  ↻ gpt retry {attempt}/{_GPT_MAX_ATTEMPTS}\n'))
             self._log(f'  $ {" ".join(args)}\n')
             rc, crashed, stalled = self._run_gpt_once(args, env, log_path)
             if rc == -2:                       # 取消
@@ -3404,9 +3406,9 @@ class SnapPairWorker(threading.Thread):
                 return 0
             if not (crashed or stalled):       # 非暫時性錯誤 → 不重試
                 return rc
-            reason = '卡死(看門狗 kill)' if stalled else 'JVM 崩潰(SIGSEGV)'
-            self._log(f'  ✗ gpt {reason} rc={rc} '
-                      f'(嘗試 {attempt}/{_GPT_MAX_ATTEMPTS})\n')
+            reason = ('卡死(看門狗 kill)' if LANG == 'zh' else 'stalled (watchdog kill)') if stalled else ('JVM 崩潰(SIGSEGV)' if LANG == 'zh' else 'JVM crash (SIGSEGV)')
+            self._log((f'  ✗ gpt {reason} rc={rc} '
+                      f'(嘗試 {attempt}/{_GPT_MAX_ATTEMPTS})\n' if LANG == 'zh' else f'  ✗ gpt {reason} rc={rc} (attempt {attempt}/{_GPT_MAX_ATTEMPTS})\n'))
         return rc                              # 用盡重試仍失敗
 
     def _run_gpt_once(self, args, env, log_path) -> Tuple[int, bool, bool]:
@@ -3535,8 +3537,8 @@ class SnapPairWorker(threading.Thread):
                     _single.append(_f)
             if _single:
                 covering = [_single[0]]
-                self._log(f'[split] {date}: {_tiw} 單 frame 即涵蓋 AOI,'
-                          f' 跳過 SliceAssembly → {covering[0].name}\n')
+                self._log((f'[split] {date}: {_tiw} 單 frame 即涵蓋 AOI,'
+                          f' 跳過 SliceAssembly → {covering[0].name}\n' if LANG == 'zh' else f'[split] {date}: {_tiw} single frame already covers AOI, skipping SliceAssembly → {covering[0].name}\n'))
 
         if len(covering) >= 2:
             # At least one IW (iw_list[0], checked above) needs both frames.
@@ -3571,8 +3573,8 @@ class SnapPairWorker(threading.Thread):
                     None)
 
                 if _single_for_iw is not None:
-                    self._log(f'[split] {date} {iw}: 單 frame 即涵蓋 AOI,'
-                              f' 跳過 SliceAssembly → {_single_for_iw.name}\n')
+                    self._log((f'[split] {date} {iw}: 單 frame 即涵蓋 AOI,'
+                              f' 跳過 SliceAssembly → {_single_for_iw.name}\n' if LANG == 'zh' else f'[split] {date} {iw}: single frame already covers AOI, skipping SliceAssembly → {_single_for_iw.name}\n'))
                     _slc_path = (str(_single_for_iw / 'manifest.safe')
                                  if _single_for_iw.suffix == '.SAFE' else str(_single_for_iw))
                     xml = fill_graph(split_graph_tpl, {
@@ -3701,7 +3703,7 @@ class SnapPairWorker(threading.Thread):
                 # (用於某對某子帶退化 — 如 IW2 ESD 重疊權重 0 → 干涉圖全零 →
                 #  merge 失敗 — 想強制只跑 IW1 的情況。)
                 iw_list = list(st.iw_list)
-                self._log(f'[IW] 手動指定 {", ".join(iw_list)} (略過自動偵測)\n')
+                self._log((f'[IW] 手動指定 {", ".join(iw_list)} (略過自動偵測)\n' if LANG == 'zh' else f'[IW] manually specified {", ".join(iw_list)} (skipping auto-detection)\n'))
             else:
                 # 自動模式: 偵測 AOI 實際覆蓋的子帶, 避免用 prefs 裡 stale 的 iw_list
                 # (e.g. IW2 saved when AOI is in IW1)。
@@ -3718,8 +3720,8 @@ class SnapPairWorker(threading.Thread):
                         iw_list = list(_iws)
                     if iw_list != list(st.iw_list):
                         self._log(
-                            f'[IW] 使用 {", ".join(iw_list)}'
-                            f'  (設定 {", ".join(st.iw_list) or "無"} / 偵測 {", ".join(_iws)})\n')
+                            (f'[IW] 使用 {", ".join(iw_list)}'
+                            f'  (設定 {", ".join(st.iw_list) or "無"} / 偵測 {", ".join(_iws)})\n' if LANG == 'zh' else f'[IW] using {", ".join(iw_list)}  (configured {", ".join(st.iw_list) or "none"} / detected {", ".join(_iws)})\n'))
                 else:
                     iw_list = list(st.iw_list) or list(ALL_IW)
 
@@ -3860,8 +3862,8 @@ class SnapPairWorker(threading.Thread):
                     _fc = _cap_gb(st.cache, _FILTER_ML_CACHE_CEIL_GB)
                     _fq = _cap_int(st.cpu, _FILTER_ML_CPU_CEIL)
                     if _fc != st.cache or _fq != st.cpu:
-                        self._log(f'  [mem] mergeIW 降載: -c {st.cache}->{_fc} '
-                                  f'-q {st.cpu}->{_fq} (防 OOM-kill)\n')
+                        self._log((f'  [mem] mergeIW 降載: -c {st.cache}->{_fc} '
+                                  f'-q {st.cpu}->{_fq} (防 OOM-kill)\n' if LANG == 'zh' else f'  [mem] mergeIW downscale: -c {st.cache}->{_fc} -q {st.cpu}->{_fq} (OOM-kill guard)\n'))
                     rc = self._run_gpt(
                         tmp_xml, str(log_dir / f'mergeIW_{pair_name}.log'),
                         cache=_fc, cpu=_fq)
@@ -3952,8 +3954,8 @@ class SnapPairWorker(threading.Thread):
                         _fc = _cap_gb(st.cache, _FILTER_ML_CACHE_CEIL_GB)
                         _fq = _cap_int(st.cpu, _FILTER_ML_CPU_CEIL)
                         if _fc != st.cache or _fq != st.cpu:
-                            self._log(f'  [mem] filter_ml 降載: -c {st.cache}->{_fc} '
-                                      f'-q {st.cpu}->{_fq} (防 OOM-kill)\n')
+                            self._log((f'  [mem] filter_ml 降載: -c {st.cache}->{_fc} '
+                                      f'-q {st.cpu}->{_fq} (防 OOM-kill)\n' if LANG == 'zh' else f'  [mem] filter_ml downscale: -c {st.cache}->{_fc} -q {st.cpu}->{_fq} (OOM-kill guard)\n'))
                         rc = self._run_gpt(tmp_xml,
                                            str(log_dir / f'filter_ml_{pair_name}_{iw}.log'),
                                            cache=_fc, cpu=_fq)
@@ -4055,7 +4057,7 @@ class SnapPairWorker(threading.Thread):
                                         snaphu_export_dir, phase_file, width,
                                         _snaphu_bin, pair_name, iw, log_dir)
                                     if rc_run != 0:
-                                        self._log(f'[warn] snaphu 全部後備仍失敗 (rc={rc_run})\n')
+                                        self._log((f'[warn] snaphu 全部後備仍失敗 (rc={rc_run})\n' if LANG == 'zh' else f'[warn] snaphu all fallbacks still failed (rc={rc_run})\n'))
                                     else:
                                         # 4c: SNAPHU Import
                                         unw_hdr = self._find_snaphu_unw_hdr(
@@ -4267,7 +4269,7 @@ class SnapPairWorker(threading.Thread):
 
         # 讀不到 → 退回原行為 (直接 snaphu，不內插不畫圖)
         if phase_orig is None or coh_arr is None:
-            self._log('[nan] 無法讀 phase/coh，直接 snaphu (不內插)\n')
+            self._log(('[nan] 無法讀 phase/coh，直接 snaphu (不內插)\n' if LANG == 'zh' else '[nan] cannot read phase/coh, running snaphu directly (no interpolation)\n'))
             self._log(f'[snaphu-run] {pair_name} {iw} width={width} ...\n')
             return self._run_cmd(run_args, run_log, cwd=str(export_dir))
 
@@ -4278,28 +4280,28 @@ class SnapPairWorker(threading.Thread):
                 phase_orig, coh_arr, st.smart_ml_coh, mode=mode, log_fn=self._log)
             filled.astype(dt).tofile(str(phase_path))   # 覆寫供 snaphu 讀
             phase_used, used_mode = filled, mode
-            self._log(f'[snaphu-run] {pair_name} {iw} width={width} '
-                      f'mode={mode} (嘗試 {mi + 1}/{len(modes)}) ...\n')
+            self._log((f'[snaphu-run] {pair_name} {iw} width={width} '
+                      f'mode={mode} (嘗試 {mi + 1}/{len(modes)}) ...\n' if LANG == 'zh' else f'[snaphu-run] {pair_name} {iw} width={width} mode={mode} (attempt {mi + 1}/{len(modes)}) ...\n'))
             rc_run = self._run_cmd(run_args, run_log, cwd=str(export_dir))
             if rc_run == 0:
                 if mi > 0:
-                    self._log(f'[nan] 後備成功: mode={mode} (前 {mi} 種失敗)\n')
+                    self._log((f'[nan] 後備成功: mode={mode} (前 {mi} 種失敗)\n' if LANG == 'zh' else f'[nan] fallback succeeded: mode={mode} ({mi} earlier modes failed)\n'))
                 break
             if self._cancel.is_set():
                 break
-            self._log(f'[nan] snaphu 失敗 (rc={rc_run}, mode={mode})，試下一後備\n')
+            self._log((f'[nan] snaphu 失敗 (rc={rc_run}, mode={mode})，試下一後備\n' if LANG == 'zh' else f'[nan] snaphu failed (rc={rc_run}, mode={mode}), trying next fallback\n'))
 
         # 每對都畫低 DPI QC 圖 (原始 wrap | 送 snaphu wrap | coh)
         try:
             out_png = (Path(st.project_dir) / 'out_fig' /
                        f'{pair_name}_{iw}_preunwrap.png')
-            tag = '✓' if rc_run == 0 else '✗unwrap失敗'
+            tag = '✓' if rc_run == 0 else ('✗unwrap失敗' if LANG == 'zh' else '✗unwrap failed')
             save_preunwrap_qc(
                 phase_orig, phase_used, coh_arr, str(out_png),
                 title=f'{pair_name} {iw}  [{tag}]', mode=used_mode)
             self._log(f'[qc] {out_png}\n')
         except Exception as exc:
-            self._log(f'[qc] 繪圖略過: {exc}\n')
+            self._log((f'[qc] 繪圖略過: {exc}\n' if LANG == 'zh' else f'[qc] plotting skipped: {exc}\n'))
         return rc_run
 
     def _parse_snaphu_conf(
@@ -4712,9 +4714,10 @@ mintpy.topographicResidual           = yes
 
 ########## 5. Deramp (optional) ##########
 ## Remove phase ramp per epoch: no / linear / quadratic
-## no: velocity.h5 = 只 demErr、不 deramp → 保留真實區域形變 (小 AOI 的 deramp
-##     會把真實形變梯度當 ramp 移除, 損失訊號)。deramp 版由後處理另外產
-##     (velocity_deramp.h5)。MintPy 順序 invert→demErr→velocity。
+## no: velocity.h5 = demErr-only, no deramp -> keeps real regional deformation
+##     (deramp on a small AOI removes true deformation gradients as a ramp).
+##     A deramped version is produced separately by post-processing
+##     (velocity_deramp.h5). MintPy order: invert -> demErr -> velocity.
 mintpy.deramp          = no
 mintpy.deramp.maskFile = maskTempCoh.h5
 
@@ -4723,7 +4726,8 @@ mintpy.velocity.excludeDate          = no
 
 ########## 7. Network Inversion ##########
 ## weightFunc: var = weighted LS (good coherence); no = uniform LS (low coherence / vegetation)
-## 實測 TSBS: var 使速度更接近 GNSS (N=6 -20.1→-21.1); 由 GUI「反演加權」下拉設定
+## Field-tested: var brings velocity closer to GNSS (N=6: -20.1 -> -21.1);
+## set via the GUI "Inversion weight" dropdown
 mintpy.networkInversion.weightFunc    = {weight}
 mintpy.networkInversion.waterMaskFile = no
 ## minTempCoh: lower this value for vegetated / low-coherence areas (default MintPy=0.7)
@@ -4806,14 +4810,14 @@ class InputPairFrame(ttk.Frame):
             self._cache_var.set(cache)
             try:
                 total_gb = int(open('/proc/meminfo').read().split('MemTotal:')[1].split()[0]) / 1024 / 1024
-                hint = f'已套用：{total_gb:.0f}GB RAM × 80%  →  Xmx={xmx}  Cache={cache}'
+                hint = (f'已套用：{total_gb:.0f}GB RAM × 80%  →  Xmx={xmx}  Cache={cache}' if LANG == 'zh' else f'Applied: {total_gb:.0f}GB RAM × 80%  →  Xmx={xmx}  Cache={cache}')
             except Exception:
-                hint = f'已套用：Xmx={xmx}  Cache={cache}'
+                hint = (f'已套用：Xmx={xmx}  Cache={cache}' if LANG == 'zh' else f'Applied: Xmx={xmx}  Cache={cache}')
             _mem_hint_var.set(hint)
 
-        ttk.Button(sf, text='自動', width=5,
+        ttk.Button(sf, text=('自動' if LANG == 'zh' else 'Auto'), width=5,
                    command=_auto_fill_mem).grid(row=2, column=2, sticky='w', padx=(16, 4))
-        _mem_hint_var = tk.StringVar(value='← 依實際 RAM × 80% 計算')
+        _mem_hint_var = tk.StringVar(value=('← 依實際 RAM × 80% 計算' if LANG == 'zh' else '← Calculated from actual RAM × 80%'))
         ttk.Label(sf, textvariable=_mem_hint_var, foreground='#888',
                   font=('TkDefaultFont', 8)).grid(
             row=2, column=3, columnspan=2, sticky='w', padx=4)
@@ -4835,7 +4839,7 @@ class InputPairFrame(ttk.Frame):
             row=0, column=3, sticky='w')
         ttk.Label(swf, text='(1T, 500G…)', foreground='#888',
                   font=('TkDefaultFont', 8)).grid(row=0, column=4, sticky='w', padx=4)
-        ttk.Label(swf, text='sudo 密碼:').grid(
+        ttk.Label(swf, text=('sudo 密碼:' if LANG == 'zh' else 'sudo password:')).grid(
             row=0, column=5, sticky='e', padx=(16, 4))
         self._swap_sudo_var = tk.StringVar()
         ttk.Entry(swf, textvariable=self._swap_sudo_var, width=14, show='*').grid(
@@ -4875,7 +4879,7 @@ class InputPairFrame(ttk.Frame):
                         command=self._refresh_aoi).grid(row=0, column=1, padx=6)
 
         # 地圖按鈕：開啟 boundingbox.klokantech.com 選範圍
-        ttk.Button(af, text='[地圖]',
+        ttk.Button(af, text=('[地圖]' if LANG == 'zh' else '[Map]'),
                    command=lambda: _open_url(
                        'https://boundingbox.klokantech.com/')).grid(
             row=0, column=2, padx=8)
@@ -4891,18 +4895,18 @@ class InputPairFrame(ttk.Frame):
                 row=0, column=i * 2 + 1, padx=2)
 
         # CSV 貼入列：貼上 boundingbox.klokantech.com 的 CSV 格式 (lon_min,lat_min,lon_max,lat_max)
-        ttk.Label(self._bbox_frame, text='CSV 貼入:',
+        ttk.Label(self._bbox_frame, text=('CSV 貼入:' if LANG == 'zh' else 'CSV paste:'),
                   foreground='#555').grid(row=1, column=0, columnspan=2,
                                           sticky='w', padx=(8, 2), pady=(3, 0))
         self._bbox_csv_var = tk.StringVar()
         csv_entry = ttk.Entry(self._bbox_frame, textvariable=self._bbox_csv_var, width=46)
         csv_entry.grid(row=1, column=2, columnspan=5, sticky='ew', padx=2, pady=(3, 0))
         csv_entry.bind('<Return>', lambda e: self._apply_bbox_csv())
-        ttk.Button(self._bbox_frame, text='套用',
+        ttk.Button(self._bbox_frame, text=('套用' if LANG == 'zh' else 'Apply'),
                    command=self._apply_bbox_csv).grid(
             row=1, column=7, padx=(4, 8), pady=(3, 0))
         ttk.Label(self._bbox_frame,
-                  text='（從 boundingbox.klokantech.com 選 Copy&Paste CSV）',
+                  text=('（從 boundingbox.klokantech.com 選 Copy&Paste CSV）' if LANG == 'zh' else '(Select on boundingbox.klokantech.com, Copy & Paste CSV)'),
                   foreground='#888').grid(row=2, column=2, columnspan=6,
                                            sticky='w', padx=2)
 
@@ -4925,7 +4929,7 @@ class InputPairFrame(ttk.Frame):
         iw_row.grid(row=3, column=0, columnspan=6, sticky='w', padx=6, pady=(4, 2))
         ttk.Label(iw_row, text='Subswaths (IW):').pack(side='left', padx=(2, 6))
         self._iw_auto_var = tk.BooleanVar(value=(st.iw_mode != 'manual'))
-        ttk.Checkbutton(iw_row, text='自動偵測', variable=self._iw_auto_var,
+        ttk.Checkbutton(iw_row, text=('自動偵測' if LANG == 'zh' else 'Auto-detect'), variable=self._iw_auto_var,
                         command=self._on_iw_auto_toggle).pack(side='left', padx=(0, 10))
         self._iw_vars: Dict[str, tk.BooleanVar] = {}
         self._iw_checks: Dict[str, ttk.Checkbutton] = {}
@@ -4935,7 +4939,7 @@ class InputPairFrame(ttk.Frame):
             cb.pack(side='left', padx=2)
             self._iw_vars[_iw] = v
             self._iw_checks[_iw] = cb
-        ttk.Label(iw_row, text='（手動：取消「自動偵測」後勾選要處理的子帶）',
+        ttk.Label(iw_row, text=('（手動：取消「自動偵測」後勾選要處理的子帶）' if LANG == 'zh' else '(Manual: uncheck "Auto-detect" then select subswaths to process)'),
                   foreground='#888').pack(side='left', padx=(8, 0))
         self._on_iw_auto_toggle()   # 依目前模式啟用/停用勾選框
 
@@ -4948,15 +4952,15 @@ class InputPairFrame(ttk.Frame):
         # Polarisation is always VV for Sentinel-1 IW
         ttk.Label(of, text='Polarisation').grid(row=0, column=0, sticky='w', padx=6, pady=2)
         self._pol_var = tk.StringVar(value='VV')
-        ttk.Label(of, text='VV（自動）', foreground='#226').grid(
+        ttk.Label(of, text=('VV（自動）' if LANG == 'zh' else 'VV (auto)'), foreground='#226').grid(
             row=0, column=1, sticky='w')
 
         # Subswaths: auto-detected from SLC scan, no manual selection needed
         ttk.Label(of, text='Subswaths').grid(row=0, column=2, sticky='w', padx=(16, 4))
-        self._iw_detect_lbl = tk.StringVar(value='⏳ 請先掃描 SLC')
+        self._iw_detect_lbl = tk.StringVar(value=('⏳ 請先掃描 SLC' if LANG == 'zh' else '⏳ Scan SLC first'))
         ttk.Label(of, textvariable=self._iw_detect_lbl,
                   foreground='#448').grid(row=0, column=3, sticky='w')
-        ttk.Label(of, text='（由 SLC 自動偵測，掃描後更新）',
+        ttk.Label(of, text=('（由 SLC 自動偵測，掃描後更新）' if LANG == 'zh' else '(Auto-detected from SLC, updates after scan)'),
                   foreground='#888').grid(row=0, column=4, sticky='w', padx=4)
         self._detected_iws: List[str] = list(st.iw_list)
         # ESD is handled inside snap2stamps/graphs — no manual toggle needed
@@ -4989,7 +4993,7 @@ class InputPairFrame(ttk.Frame):
         ttk.Spinbox(sml_frame, from_=0.1, to=0.99, increment=0.05, width=6,
                     textvariable=self._sml_coh_var, format='%.2f').pack(
             side='left', padx=(2, 8))
-        ttk.Label(sml_frame, text='(鄰域 n×n，coh 最大者勝)',
+        ttk.Label(sml_frame, text=('(鄰域 n×n，coh 最大者勝)' if LANG == 'zh' else '(n×n neighborhood, highest coh wins)'),
                   foreground='#666').pack(side='left', padx=4)
 
         # Live TC pixel spacing display: ML spacing × smart_ml_n
@@ -5057,7 +5061,7 @@ class InputPairFrame(ttk.Frame):
         ttk.Label(_drow1, text='(YYYY-MM-DD)', foreground='#666').pack(side='left', padx=4)
         # 第二排：衛星選擇 + Scan + 結果 (只納入勾選衛星的日期)
         _drow2 = ttk.Frame(df); _drow2.pack(fill='x', pady=(2, 0))
-        ttk.Label(_drow2, text='衛星').pack(side='left', padx=(6, 2))
+        ttk.Label(_drow2, text=('衛星' if LANG == 'zh' else 'Satellite')).pack(side='left', padx=(6, 2))
         self._sat_vars: Dict[str, tk.BooleanVar] = {}
         for _sat in ('S1A', 'S1B', 'S1C', 'S1D'):
             _v = tk.BooleanVar(value=(_sat in st.satellites))
@@ -5245,10 +5249,10 @@ class InputPairFrame(ttk.Frame):
         if not ok and _need_pw:
             from tkinter import simpledialog
             pwd = simpledialog.askstring(
-                'sudo 密碼', '請輸入 sudo 密碼（或在「sudo 密碼」欄預先填寫）：',
+                ('sudo 密碼' if LANG == 'zh' else 'sudo password'), ('請輸入 sudo 密碼（或在「sudo 密碼」欄預先填寫）：' if LANG == 'zh' else 'Enter sudo password (or pre-fill the "sudo password" field):'),
                 show='*', parent=self.app)
             if pwd is None:
-                return False, '[取消] 未輸入密碼'
+                return False, ('[取消] 未輸入密碼' if LANG == 'zh' else '[Cancelled] No password entered')
             ok, msg = fn_with_pass(pwd)
         return ok, msg
 
@@ -5265,14 +5269,14 @@ class InputPairFrame(ttk.Frame):
                 cfg_unit = ''.join(c for c in cfg_size if c.isalpha())
                 cfg_gib = cfg_val * {'T': 1024, 'G': 1, 'M': 1/1024}.get(cfg_unit, 1)
                 if abs(actual_gib - cfg_gib) > 1:
-                    size_warn = f'  ⚠ 現有 {actual_gib:.0f}G ≠ 設定 {cfg_gib:.0f}G（需重建才能改大小）'
+                    size_warn = (f'  ⚠ 現有 {actual_gib:.0f}G ≠ 設定 {cfg_gib:.0f}G（需重建才能改大小）' if LANG == 'zh' else f'  ⚠ Existing {actual_gib:.0f}G ≠ configured {cfg_gib:.0f}G (rebuild required to resize)')
             except Exception:
                 pass
-            self._swap_status_var.set(f'✓ 已啟用  {info}{size_warn}  ({img})')
+            self._swap_status_var.set((f'✓ 已啟用  {info}{size_warn}  ({img})' if LANG == 'zh' else f'✓ Enabled  {info}{size_warn}  ({img})'))
         elif Path(img).exists():
-            self._swap_status_var.set(f'◉ Swapfile 存在但未啟用 ({img})')
+            self._swap_status_var.set((f'◉ Swapfile 存在但未啟用 ({img})' if LANG == 'zh' else f'◉ Swapfile exists but not enabled ({img})'))
         else:
-            self._swap_status_var.set(f'✗ 未建立 ({img})')
+            self._swap_status_var.set((f'✗ 未建立 ({img})' if LANG == 'zh' else f'✗ Not created ({img})'))
 
     def _create_swapfile_ui(self):
         img  = self._swap_img()
@@ -5280,33 +5284,33 @@ class InputPairFrame(ttk.Frame):
         # 若檔案已存在，詢問是否停用→刪除→重建
         if Path(img).exists():
             active, info = _swap_status(img)
-            active_hint = f'（目前已啟用：{info}）' if active else '（目前未啟用）'
+            active_hint = (f'（目前已啟用：{info}）' if LANG == 'zh' else f'(Currently enabled: {info})') if active else ('（目前未啟用）' if LANG == 'zh' else '(Currently not enabled)')
             if not messagebox.askyesno(
-                    '覆蓋確認',
-                    f'Swapfile 已存在{active_hint}：\n  {img}\n\n'
+                    ('覆蓋確認' if LANG == 'zh' else 'Overwrite confirmation'),
+                    (f'Swapfile 已存在{active_hint}：\n  {img}\n\n'
                     f'將執行：停用 → 刪除 → 重建 ({size})\n\n'
-                    f'確定覆蓋？',
+                    f'確定覆蓋？' if LANG == 'zh' else f'Swapfile already exists{active_hint}:\n  {img}\n\nWill: disable → delete → rebuild ({size})\n\nConfirm overwrite?'),
                     icon='warning', parent=self.app):
                 return
             # 停用（若 active）
             if active:
-                self._swap_status_var.set('停用舊 swap…')
+                self._swap_status_var.set(('停用舊 swap…' if LANG == 'zh' else 'Disabling old swap…'))
                 self.update_idletasks()
                 ok, msg = self._sudo_op(lambda pw: _disable_swap(img, pw))
                 if not ok:
-                    self._swap_status_var.set(f'[ERROR] 無法停用：{msg}')
+                    self._swap_status_var.set((f'[ERROR] 無法停用：{msg}' if LANG == 'zh' else f'[ERROR] Failed to disable: {msg}'))
                     return
             # 刪除舊檔（root 擁有，需 sudo rm）
-            self._swap_status_var.set('刪除舊 swapfile…')
+            self._swap_status_var.set(('刪除舊 swapfile…' if LANG == 'zh' else 'Deleting old swapfile…'))
             self.update_idletasks()
             def _do_rm(pw, _img=img):
                 rc, out = _run_sudo_cmd(['rm', '-f', _img], pw)
                 return rc == 0, out
             ok, msg = self._sudo_op(_do_rm)
             if not ok:
-                self._swap_status_var.set(f'[ERROR] 無法刪除：{msg}')
+                self._swap_status_var.set((f'[ERROR] 無法刪除：{msg}' if LANG == 'zh' else f'[ERROR] Failed to delete: {msg}'))
                 return
-        self._swap_status_var.set(f'建立 {size} swapfile…')
+        self._swap_status_var.set((f'建立 {size} swapfile…' if LANG == 'zh' else f'Creating {size} swapfile…'))
         self.update_idletasks()
         ok, msg = self._sudo_op(lambda pw: _create_swapfile(img, size, pw))
         self._swap_status_var.set(msg)
@@ -5314,7 +5318,7 @@ class InputPairFrame(ttk.Frame):
             self._refresh_swap_status()
 
     def _enable_swap_ui(self):
-        self._swap_status_var.set('啟用中…')
+        self._swap_status_var.set(('啟用中…' if LANG == 'zh' else 'Enabling…'))
         self.update_idletasks()
         img = self._swap_img()
         ok, msg = self._sudo_op(lambda pw: _enable_swap(img, pw))
@@ -5323,7 +5327,7 @@ class InputPairFrame(ttk.Frame):
             self._refresh_swap_status()
 
     def _disable_swap_ui(self):
-        self._swap_status_var.set('停用中…')
+        self._swap_status_var.set(('停用中…' if LANG == 'zh' else 'Disabling…'))
         self.update_idletasks()
         img = self._swap_img()
         ok, msg = self._sudo_op(lambda pw: _disable_swap(img, pw))
@@ -5377,23 +5381,23 @@ class InputPairFrame(ttk.Frame):
         raw = raw.strip('"\'[]')
         parts = [p.strip() for p in raw.split(',')]
         if len(parts) != 4:
-            messagebox.showerror('CSV 格式錯誤',
-                                 f'需要 4 個數字（lon_min,lat_min,lon_max,lat_max），'
-                                 f'收到 {len(parts)} 個：\n{raw}',
+            messagebox.showerror(('CSV 格式錯誤' if LANG == 'zh' else 'CSV format error'),
+                                 (f'需要 4 個數字（lon_min,lat_min,lon_max,lat_max），'
+                                 f'收到 {len(parts)} 個：\n{raw}' if LANG == 'zh' else f'Requires 4 numbers (lon_min,lat_min,lon_max,lat_max), got {len(parts)}:\n{raw}'),
                                  parent=self.app)
             return
         try:
             lon_min, lat_min, lon_max, lat_max = [float(p) for p in parts]
         except ValueError:
-            messagebox.showerror('CSV 格式錯誤',
-                                 f'無法解析為數字：\n{raw}',
+            messagebox.showerror(('CSV 格式錯誤' if LANG == 'zh' else 'CSV format error'),
+                                 (f'無法解析為數字：\n{raw}' if LANG == 'zh' else f'Cannot parse as numbers:\n{raw}'),
                                  parent=self.app)
             return
         # basic sanity check
         if not (-180 <= lon_min < lon_max <= 180 and -90 <= lat_min < lat_max <= 90):
-            messagebox.showerror('座標範圍錯誤',
-                                 f'數值不合理：lon {lon_min}–{lon_max}, lat {lat_min}–{lat_max}\n'
-                                 f'請確認格式為 lon_min,lat_min,lon_max,lat_max',
+            messagebox.showerror(('座標範圍錯誤' if LANG == 'zh' else 'Coordinate range error'),
+                                 (f'數值不合理：lon {lon_min}–{lon_max}, lat {lat_min}–{lat_max}\n'
+                                 f'請確認格式為 lon_min,lat_min,lon_max,lat_max' if LANG == 'zh' else f'Invalid values: lon {lon_min}–{lon_max}, lat {lat_min}–{lat_max}\nPlease confirm the format is lon_min,lat_min,lon_max,lat_max'),
                                  parent=self.app)
             return
         self._lonmin_var.set(str(lon_min))
@@ -5429,7 +5433,7 @@ class InputPairFrame(ttk.Frame):
         if found:
             self._snaphu_status.set(f'✓ {found}')
         else:
-            self._snaphu_status.set(f'✗ 找不到 "{path}"')
+            self._snaphu_status.set((f'✗ 找不到 "{path}"' if LANG == 'zh' else f'✗ Not found "{path}"'))
 
     def _browse_snaphu(self):
         from tkinter import filedialog
@@ -5447,7 +5451,7 @@ class InputPairFrame(ttk.Frame):
     def _auto_download_dem(self):
         """Download GLO-30 DEM as GeoTIFF for SNAP, based on current BBOX AOI."""
         if self._aoi_mode.get() != 'BBOX':
-            self._err('DEM', '自動下載 DEM 目前僅支援 BBOX 模式。\n請切換至 BBOX 並填入座標。')
+            self._err('DEM', ('自動下載 DEM 目前僅支援 BBOX 模式。\n請切換至 BBOX 並填入座標。' if LANG == 'zh' else 'Auto-download DEM currently only supports BBOX mode.\nPlease switch to BBOX and fill in coordinates.'))
             return
         try:
             lon_min = float(self._lonmin_var.get())
@@ -5455,11 +5459,11 @@ class InputPairFrame(ttk.Frame):
             lon_max = float(self._lonmax_var.get())
             lat_max = float(self._latmax_var.get())
         except ValueError:
-            self._err('AOI', '請先填入有效的 BBOX 座標再下載 DEM。')
+            self._err('AOI', ('請先填入有效的 BBOX 座標再下載 DEM。' if LANG == 'zh' else 'Please fill in valid BBOX coordinates before downloading DEM.'))
             return
 
         dem_dir = str(Path(__file__).parent / 'DEM')
-        self._dem_dl_btn.configure(state='disabled', text='⏳ 下載中...')
+        self._dem_dl_btn.configure(state='disabled', text=('⏳ 下載中...' if LANG == 'zh' else '⏳ Downloading...'))
         self.app.update_idletasks()
 
         def _work():
@@ -5468,14 +5472,14 @@ class InputPairFrame(ttk.Frame):
                 self._dem_dl_btn.configure(state='normal', text=_T('btn_auto_dem'))
                 if result:
                     self._extdem_var.set(result)
-                    self._info('DEM 下載完成', f'DEM 已儲存:\n{result}\n已自動填入 External DEM 欄位。')
+                    self._info(('DEM 下載完成' if LANG == 'zh' else 'DEM download complete'), (f'DEM 已儲存:\n{result}\n已自動填入 External DEM 欄位。' if LANG == 'zh' else f'DEM saved:\n{result}\nAuto-filled into the External DEM field.'))
                 else:
-                    self._err('DEM 下載失敗',
-                               '無法取得 GLO-30 DEM，請確認：\n'
+                    self._err(('DEM 下載失敗' if LANG == 'zh' else 'DEM download failed'),
+                               ('無法取得 GLO-30 DEM，請確認：\n'
                                '  1. 網路可連線至 AWS S3\n'
                                '  2. GDAL/osgeo 已安裝\n'
                                '  3. AOI 座標正確\n'
-                               '或手動選取 DEM 檔案。')
+                               '或手動選取 DEM 檔案。' if LANG == 'zh' else 'Failed to fetch GLO-30 DEM, please check:\n  1. Network can reach AWS S3\n  2. GDAL/osgeo is installed\n  3. AOI coordinates are correct\nOr select the DEM file manually.'))
             self.app.after(0, _done)
 
         threading.Thread(target=_work, daemon=True).start()
@@ -5485,14 +5489,14 @@ class InputPairFrame(ttk.Frame):
             return
         slc = self._slc_var.get().strip()
         if not slc or not Path(slc).is_dir():
-            self._err('SLC', '請先設定有效的 SLC 資料夾。')
+            self._err('SLC', ('請先設定有效的 SLC 資料夾。' if LANG == 'zh' else 'Please set a valid SLC folder first.'))
             return
         dates = self.app.state.available_dates
         if not dates:
-            self._err('Dates', '請先按「Scan SLC dir → dates」取得日期清單。')
+            self._err('Dates', ('請先按「Scan SLC dir → dates」取得日期清單。' if LANG == 'zh' else 'Please click "Scan SLC dir → dates" first to get the date list.'))
             return
-        self._asf_check_btn.configure(state='disabled', text='⏳ 檢查中...')
-        self._asf_status_var.set('⏳ 本地 SLC 完整性檢查中...')
+        self._asf_check_btn.configure(state='disabled', text=('⏳ 檢查中...' if LANG == 'zh' else '⏳ Checking...'))
+        self._asf_status_var.set(('⏳ 本地 SLC 完整性檢查中...' if LANG == 'zh' else '⏳ Checking local SLC integrity...'))
         self.app.update_idletasks()
 
         self.collect_state()    # sync slc/lat widget values → state
@@ -5526,17 +5530,17 @@ class InputPairFrame(ttk.Frame):
                          if s != 'ok' and 'off-track' not in s
                          and 'cross-frame' not in s]
 
-            lines = [f'[本地] ✓ {len(ok_local)}/{len(dates)} SLC 正常']
+            lines = [(f'[本地] ✓ {len(ok_local)}/{len(dates)} SLC 正常' if LANG == 'zh' else f'[Local] ✓ {len(ok_local)}/{len(dates)} SLC OK')]
             if offtrack:
-                lines.append(f'[本地] ℹ {len(offtrack)} 筆影像不覆蓋 AOI（正常跳過，非缺漏）:')
+                lines.append((f'[本地] ℹ {len(offtrack)} 筆影像不覆蓋 AOI（正常跳過，非缺漏）:' if LANG == 'zh' else f'[Local] ℹ {len(offtrack)} scene(s) do not cover AOI (normally skipped, not missing):'))
                 for d, reason in offtrack:
                     lines.append(f'  {d}: {reason}')
             if xframe:
-                lines.append(f'[本地] ⚠ 跨 frame 不完整 {len(xframe)} 筆:')
+                lines.append((f'[本地] ⚠ 跨 frame 不完整 {len(xframe)} 筆:' if LANG == 'zh' else f'[Local] ⚠ Cross-frame incomplete {len(xframe)} scene(s):'))
                 for d, reason in xframe:
                     lines.append(f'  {d}: {reason}')
             if real_bad:
-                lines.append(f'[本地] ✗ 有問題 {len(real_bad)} 筆:')
+                lines.append((f'[本地] ✗ 有問題 {len(real_bad)} 筆:' if LANG == 'zh' else f'[Local] ✗ Problem {len(real_bad)} scene(s):'))
                 for d, reason in real_bad:
                     lines.append(f'  {d}: {reason}')
 
@@ -5544,7 +5548,7 @@ class InputPairFrame(ttk.Frame):
             asf_dates: Optional[List[str]] = None
             asf_log: List[str] = []          # 收集 query_asf_dates 內部訊息/例外
             if start and end:
-                lines.append('\n[ASF] ⏳ 正在查詢 ASF 資料庫...')
+                lines.append(('\n[ASF] ⏳ 正在查詢 ASF 資料庫...' if LANG == 'zh' else '\n[ASF] ⏳ Querying ASF database...'))
                 _set('\n'.join(lines))
                 asf_dates = query_asf_dates(
                     start, end, wkt, frame=frame,
@@ -5556,11 +5560,11 @@ class InputPairFrame(ttk.Frame):
             if asf_dates is not None:
                 local_all = set(d for d in status)      # dates found by scan
                 candidates = [d for d in asf_dates if d not in local_all]
-                lines.append(f'[ASF] 資料庫共 {len(asf_dates)} 筆場景')
+                lines.append((f'[ASF] 資料庫共 {len(asf_dates)} 筆場景' if LANG == 'zh' else f'[ASF] Database has {len(asf_dates)} scene(s)'))
 
                 if candidates:
                     # ── Step 3: deep-check each "ASF-only" date in SLC dir ─
-                    lines.append(f'[ASF] scan 未收錄 {len(candidates)} 筆，逐一確認本地...')
+                    lines.append((f'[ASF] scan 未收錄 {len(candidates)} 筆，逐一確認本地...' if LANG == 'zh' else f'[ASF] scan did not include {len(candidates)} scene(s), verifying locally one by one...'))
                     _set('\n'.join(lines))
 
                     p_slc = Path(slc)
@@ -5593,42 +5597,43 @@ class InputPairFrame(ttk.Frame):
                             reasons.append(f'{item.name}: {reason}')
                         if not best_ok:
                             incomplete_dates.append(d)
-                            lines.append(f'  [不完整] {d}: {" | ".join(reasons)}')
+                            lines.append((f'  [不完整] {d}: {" | ".join(reasons)}' if LANG == 'zh' else f'  [Incomplete] {d}: {" | ".join(reasons)}'))
 
                     # Summary
                     if safe_ok_dates:
-                        lines.append(f'[ASF] ✓ SAFE 完整（可直接使用）: {len(safe_ok_dates)} 筆')
+                        lines.append((f'[ASF] ✓ SAFE 完整（可直接使用）: {len(safe_ok_dates)} 筆' if LANG == 'zh' else f'[ASF] ✓ SAFE complete (ready to use): {len(safe_ok_dates)} scene(s)'))
                     if zip_ok_dates:
-                        lines.append(f'[ASF] ✓ ZIP 完整（可直接使用）: {len(zip_ok_dates)} 筆')
+                        lines.append((f'[ASF] ✓ ZIP 完整（可直接使用）: {len(zip_ok_dates)} 筆' if LANG == 'zh' else f'[ASF] ✓ ZIP complete (ready to use): {len(zip_ok_dates)} scene(s)'))
                     if incomplete_dates:
-                        lines.append(f'[ASF] ⚠ 檔案不完整需重下: {len(incomplete_dates)} 筆: '
-                                     f'{", ".join(incomplete_dates[:5])}'
+                        lines.append((f'[ASF] ⚠ 檔案不完整需重下: {len(incomplete_dates)} 筆: '
+                                     f'{", ".join(incomplete_dates[:5])}' if LANG == 'zh' else f'[ASF] ⚠ File incomplete, needs re-download: {len(incomplete_dates)} scene(s): {", ".join(incomplete_dates[:5])}')
                                      + (f' …' if len(incomplete_dates) > 5 else ''))
                     if truly_missing:
                         missing_str = ', '.join(truly_missing[:6])
                         if len(truly_missing) > 6:
-                            missing_str += f' …（共 {len(truly_missing)} 筆）'
-                        lines.append(f'[ASF] ✗ 完全缺漏需下載: {len(truly_missing)} 筆: {missing_str}')
+                            missing_str += (f' …（共 {len(truly_missing)} 筆）' if LANG == 'zh' else f' …({len(truly_missing)} total)')
+                        lines.append((f'[ASF] ✗ 完全缺漏需下載: {len(truly_missing)} 筆: {missing_str}' if LANG == 'zh' else f'[ASF] ✗ Completely missing, needs download: {len(truly_missing)} scene(s): {missing_str}'))
 
                     need_download = truly_missing + incomplete_dates
                     if not need_download:
-                        lines.append('[ASF] ✓ 所有場景均已齊全（含 SAFE/ZIP），無需下載')
+                        lines.append(('[ASF] ✓ 所有場景均已齊全（含 SAFE/ZIP），無需下載' if LANG == 'zh' else '[ASF] ✓ All scenes are complete (SAFE/ZIP included), no download needed'))
                     asf_missing = need_download
                 else:
-                    lines.append('[ASF] ✓ 本地與 ASF 一致，無缺漏')
+                    lines.append(('[ASF] ✓ 本地與 ASF 一致，無缺漏' if LANG == 'zh' else '[ASF] ✓ Local matches ASF, nothing missing'))
             elif start and end:
-                lines.append('[ASF] ⚠ 查詢失敗（請確認 asf-search 套件或網路連線）')
+                lines.append(('[ASF] ⚠ 查詢失敗（請確認 asf-search 套件或網路連線）' if LANG == 'zh' else '[ASF] ⚠ Query failed (check asf-search package or network connection)'))
                 # 顯示 query_asf_dates 內部捕捉到的真正例外 (避免被吞掉、無從診斷)
                 detail = next((m for m in reversed(asf_log)
-                               if '失敗' in m or 'rror' in m), '')
+                               if '失敗' in m or 'fail' in m.lower()
+                               or 'rror' in m.lower()), '')
                 if not detail and asf_log:
                     detail = asf_log[-1]
                 if detail:
-                    lines.append(f'    ↳ 細節: {detail}')
+                    lines.append((f'    ↳ 細節: {detail}' if LANG == 'zh' else f'    ↳ Detail: {detail}'))
 
             _set('\n'.join(lines))
             self.app.after(0, self._asf_check_btn.configure,
-                           {'state': 'normal', 'text': '[?] 檢查 SLC 完整性'})
+                           {'state': 'normal', 'text': ('[?] 檢查 SLC 完整性' if LANG == 'zh' else '[?] Check SLC integrity')})
 
             # ── Step 4: prompt only for truly missing / corrupt scenes ────
             if asf_missing:
@@ -5640,12 +5645,12 @@ class InputPairFrame(ttk.Frame):
         """Popup: ask whether to download ASF-missing scenes."""
         preview = ', '.join(missing[:6])
         if len(missing) > 6:
-            preview += f'\n  …（共 {len(missing)} 筆）'
+            preview += (f'\n  …（共 {len(missing)} 筆）' if LANG == 'zh' else f'\n  …({len(missing)} total)')
         ans = messagebox.askquestion(
-            '比對 ASF 資料庫',
-            f'ASF 資料庫有 {len(missing)} 筆場景在本地缺漏：\n\n'
+            ('比對 ASF 資料庫' if LANG == 'zh' else 'Compare with ASF database'),
+            (f'ASF 資料庫有 {len(missing)} 筆場景在本地缺漏：\n\n'
             f'  {preview}\n\n'
-            '是否從 ASF 網站補齊缺漏 SLC？',
+            '是否從 ASF 網站補齊缺漏 SLC？' if LANG == 'zh' else f'ASF database has {len(missing)} scene(s) missing locally:\n\n  {preview}\n\nDownload missing SLC from the ASF website?'),
             icon='question')
         if ans == 'yes':
             self._download_missing_slcs(dates_override=missing)
@@ -5660,11 +5665,11 @@ class InputPairFrame(ttk.Frame):
         user = self._asf_user_var.get().strip()
         pwd  = self._asf_pass_var.get().strip()
         if not slc:
-            self._err('SLC', '請先設定 ASF 下載路徑（Path 欄位）。')
+            self._err('SLC', ('請先設定 ASF 下載路徑（Path 欄位）。' if LANG == 'zh' else 'Please set the ASF download path (Path field) first.'))
             return
         Path(slc).mkdir(parents=True, exist_ok=True)
         if not user or not pwd:
-            self._err('ASF', '請先填入 Earthdata username / password。')
+            self._err('ASF', ('請先填入 Earthdata username / password。' if LANG == 'zh' else 'Please fill in Earthdata username / password first.'))
             return
 
         frame_str = self._asf_frame_var.get().strip()
@@ -5672,13 +5677,13 @@ class InputPairFrame(ttk.Frame):
         orbit_str = self._asf_orbit_var.get().strip()
         relative_orbit = int(orbit_str) if orbit_str.isdigit() else None
 
-        self._asf_dl_btn.configure(state='disabled', text='⏳ 下載中...')
-        self._asf_status_var.set('⏳ 準備中...')
+        self._asf_dl_btn.configure(state='disabled', text=('⏳ 下載中...' if LANG == 'zh' else '⏳ Downloading...'))
+        self._asf_status_var.set(('⏳ 準備中...' if LANG == 'zh' else '⏳ Preparing...'))
         self.app.update_idletasks()
 
         def _restore():
             self.app.after(0, self._asf_dl_btn.configure,
-                           {'state': 'normal', 'text': '補ASF SLC'})
+                           {'state': 'normal', 'text': ('補ASF SLC' if LANG == 'zh' else 'Fetch ASF SLC')})
 
         def _update(msg: str):
             self.app.after(0, self._asf_status_var.set, msg)
@@ -5688,13 +5693,13 @@ class InputPairFrame(ttk.Frame):
             try:
                 import asf_search  # noqa: F401
             except ImportError:
-                _update('⏳ asf_search 未安裝，正在安裝 pip install asf-search …')
+                _update(('⏳ asf_search 未安裝，正在安裝 pip install asf-search …' if LANG == 'zh' else '⏳ asf_search not installed, installing via pip install asf-search …'))
                 ok, out = _pip_install('asf-search')
                 if not ok:
-                    _update(f'✗ 安裝失敗:\n{out[-300:]}')
+                    _update((f'✗ 安裝失敗:\n{out[-300:]}' if LANG == 'zh' else f'✗ Install failed:\n{out[-300:]}'))
                     _restore()
                     return
-                _update('✓ asf_search 安裝完成，繼續下載…')
+                _update(('✓ asf_search 安裝完成，繼續下載…' if LANG == 'zh' else '✓ asf_search installed, continuing download…'))
 
             # ── Step 1: decide which dates to download ────────────────────
             if dates_override is not None:
@@ -5702,21 +5707,21 @@ class InputPairFrame(ttk.Frame):
             else:
                 dates = self.app.state.available_dates
                 if not dates:
-                    _update('⚠ 尚未取得日期清單，請先 Scan SLC dir。')
+                    _update(('⚠ 尚未取得日期清單，請先 Scan SLC dir。' if LANG == 'zh' else '⚠ Date list not available yet, please Scan SLC dir first.'))
                     _restore()
                     return
                 status  = check_slc_completeness(slc, dates)
                 missing = [d for d, s in status.items() if s != 'ok']
 
             if not missing:
-                _update('✓ 所有 SLC 完整，無需下載')
+                _update(('✓ 所有 SLC 完整，無需下載' if LANG == 'zh' else '✓ All SLC complete, no download needed'))
                 _restore()
                 return
 
             # ── Step 2: download each missing date ────────────────────────
             masked_pwd = ('*' * max(0, len(pwd) - 2) + pwd[-2:]) if len(pwd) > 2 else '***'
             logs: List[str] = [
-                f'補下 {len(missing)} 筆: {missing}',
+                (f'補下 {len(missing)} 筆: {missing}' if LANG == 'zh' else f'Fetching {len(missing)} missing: {missing}'),
                 f'[auth] user={user}  pwd={masked_pwd}',
             ]
             for d in missing:
@@ -5765,23 +5770,23 @@ class InputPairFrame(ttk.Frame):
         try:
             vals = {k: float(v) for k, v in raw.items()}
         except ValueError:
-            self._err('AOI', f'AOI 經緯度需為數字，目前: {raw}')
+            self._err('AOI', (f'AOI 經緯度需為數字，目前: {raw}' if LANG == 'zh' else f'AOI lat/lon must be numbers, currently: {raw}'))
             return False
         errs = []
         if not -90.0 <= vals['latmin'] <= 90.0:
-            errs.append(f"latmin={vals['latmin']} 超出 [-90, 90]（是否多打一位數？）")
+            errs.append((f"latmin={vals['latmin']} 超出 [-90, 90]（是否多打一位數？）" if LANG == 'zh' else f"latmin={vals['latmin']} out of range [-90, 90] (extra digit typed?)"))
         if not -90.0 <= vals['latmax'] <= 90.0:
-            errs.append(f"latmax={vals['latmax']} 超出 [-90, 90]")
+            errs.append((f"latmax={vals['latmax']} 超出 [-90, 90]" if LANG == 'zh' else f"latmax={vals['latmax']} out of range [-90, 90]"))
         if not -180.0 <= vals['lonmin'] <= 180.0:
-            errs.append(f"lonmin={vals['lonmin']} 超出 [-180, 180]")
+            errs.append((f"lonmin={vals['lonmin']} 超出 [-180, 180]" if LANG == 'zh' else f"lonmin={vals['lonmin']} out of range [-180, 180]"))
         if not -180.0 <= vals['lonmax'] <= 180.0:
-            errs.append(f"lonmax={vals['lonmax']} 超出 [-180, 180]")
+            errs.append((f"lonmax={vals['lonmax']} 超出 [-180, 180]" if LANG == 'zh' else f"lonmax={vals['lonmax']} out of range [-180, 180]"))
         if not errs and vals['latmin'] >= vals['latmax']:
-            errs.append(f"latmin({vals['latmin']}) 必須 < latmax({vals['latmax']})")
+            errs.append((f"latmin({vals['latmin']}) 必須 < latmax({vals['latmax']})" if LANG == 'zh' else f"latmin({vals['latmin']}) must be < latmax({vals['latmax']})"))
         if not errs and vals['lonmin'] >= vals['lonmax']:
-            errs.append(f"lonmin({vals['lonmin']}) 必須 < lonmax({vals['lonmax']})")
+            errs.append((f"lonmin({vals['lonmin']}) 必須 < lonmax({vals['lonmax']})" if LANG == 'zh' else f"lonmin({vals['lonmin']}) must be < lonmax({vals['lonmax']})"))
         if errs:
-            self._err('AOI 範圍錯誤', '請修正 AOI 邊界：\n  ' + '\n  '.join(errs))
+            self._err(('AOI 範圍錯誤' if LANG == 'zh' else 'AOI range error'), ('請修正 AOI 邊界：\n  ' if LANG == 'zh' else 'Please fix the AOI bounds:\n  ') + '\n  '.join(errs))
             return False
         return True
 
@@ -5791,15 +5796,15 @@ class InputPairFrame(ttk.Frame):
         try:
             slc = self._slc_var.get().strip()
             if not slc:
-                self._dates_info.set('⚠ SLC 資料夾未設定')
-                self._err('SLC dir', '請先在上方設定 SLC folder 路徑。')
+                self._dates_info.set(('⚠ SLC 資料夾未設定' if LANG == 'zh' else '⚠ SLC folder not set'))
+                self._err('SLC dir', ('請先在上方設定 SLC folder 路徑。' if LANG == 'zh' else 'Please set the SLC folder path above first.'))
                 return
             if not Path(slc).is_dir():
-                self._dates_info.set(f'⚠ 路徑不存在: {slc}')
-                self._err('SLC dir', f'找不到資料夾:\n{slc}')
+                self._dates_info.set((f'⚠ 路徑不存在: {slc}' if LANG == 'zh' else f'⚠ Path does not exist: {slc}'))
+                self._err('SLC dir', (f'找不到資料夾:\n{slc}' if LANG == 'zh' else f'Folder not found:\n{slc}'))
                 return
 
-            self._dates_info.set('⏳ 掃描中（驗證 IW SLC）...')
+            self._dates_info.set(('⏳ 掃描中（驗證 IW SLC）...' if LANG == 'zh' else '⏳ Scanning (validating IW SLC)...'))
             self.app.update_idletasks()
 
             # 讀使用者勾選的衛星，存入 state 並用於篩選
@@ -5841,34 +5846,34 @@ class InputPairFrame(ttk.Frame):
                 all_valid = _kept
 
             if not all_valid:
-                msg = '⚠ 找不到有效的 IW SLC'
+                msg = ('⚠ 找不到有效的 IW SLC' if LANG == 'zh' else '⚠ No valid IW SLC found')
                 if excluded:
-                    msg += f'（找到 IW 檔但無效: {excluded}）'
+                    msg += (f'（找到 IW 檔但無效: {excluded}）' if LANG == 'zh' else f'(Found IW file(s) but invalid: {excluded})')
                 self._dates_info.set(msg)
-                self._warn('Scan', f'在 {slc} 中找不到可用的 IW SLC。\n'
-                           '請確認 .SAFE 或 .zip 資料完整。')
+                self._warn('Scan', (f'在 {slc} 中找不到可用的 IW SLC。\n'
+                           '請確認 .SAFE 或 .zip 資料完整。' if LANG == 'zh' else f'No usable IW SLC found in {slc}.\nPlease confirm .SAFE or .zip data is complete.'))
                 return
 
             try:
                 dates = filter_dates(all_valid,
                                      self._start_var.get(), self._end_var.get())
             except ValueError as e:
-                self._dates_info.set(f'⚠ 日期格式錯誤: {e}')
+                self._dates_info.set((f'⚠ 日期格式錯誤: {e}' if LANG == 'zh' else f'⚠ Date format error: {e}'))
                 self._err('Date format', str(e))
                 return
 
             self.app.state.available_dates = dates
-            excl_note = f'  已排除無效: {excluded}' if excluded else ''
+            excl_note = (f'  已排除無效: {excluded}' if LANG == 'zh' else f'  Excluded invalid: {excluded}') if excluded else ''
             if offtrack_excluded:
-                excl_note += (f'  已排除 off-track(不覆蓋AOI,非缺漏,'
-                              f'檔案保留): {offtrack_excluded}')
+                excl_note += ((f'  已排除 off-track(不覆蓋AOI,非缺漏,'
+                              f'檔案保留): {offtrack_excluded}' if LANG == 'zh' else f'  Excluded off-track (does not cover AOI, not missing, file kept): {offtrack_excluded}'))
             if dates:
                 self._dates_info.set(
-                    f'✓ {len(dates)} 筆有效 IW 日期  '
-                    f'({dates[0]} … {dates[-1]}){excl_note}')
+                    (f'✓ {len(dates)} 筆有效 IW 日期  '
+                    f'({dates[0]} … {dates[-1]}){excl_note}' if LANG == 'zh' else f'✓ {len(dates)} valid IW date(s)  ({dates[0]} … {dates[-1]}){excl_note}'))
             else:
                 self._dates_info.set(
-                    f'⚠ 篩選後無日期 (原始 {len(all_valid)} 筆){excl_note}')
+                    (f'⚠ 篩選後無日期 (原始 {len(all_valid)} 筆){excl_note}' if LANG == 'zh' else f'⚠ No dates after filtering (original {len(all_valid)}){excl_note}'))
 
             # Auto-detect subswaths using the same AOI that will be used for
             # processing (WKT extent when aoi_mode == 'WKT', bbox otherwise)
@@ -5885,7 +5890,7 @@ class InputPairFrame(ttk.Frame):
                 self._on_iw_auto_toggle()
 
         except Exception as exc:
-            self._dates_info.set(f'⚠ 錯誤: {exc}')
+            self._dates_info.set((f'⚠ 錯誤: {exc}' if LANG == 'zh' else f'⚠ Error: {exc}'))
             self._err('Scan error', str(exc))
 
     def _auto_detect_on_load(self):
@@ -5908,8 +5913,8 @@ class InputPairFrame(ttk.Frame):
             def apply():
                 if dates:
                     self._dates_info.set(
-                        f'✓ {len(dates)} 筆有效 IW 日期 '
-                        f'({dates[0]} … {dates[-1]})')
+                        (f'✓ {len(dates)} 筆有效 IW 日期 '
+                        f'({dates[0]} … {dates[-1]})' if LANG == 'zh' else f'✓ {len(dates)} valid IW date(s) ({dates[0]} … {dates[-1]})'))
                 want = set(self.app.state.selected_day_intervals) | proc_ivs
                 for idx, d in enumerate(DAY_INTERVALS_ALL):
                     if d in want:
@@ -5922,7 +5927,7 @@ class InputPairFrame(ttk.Frame):
         try:
             dates = self.app.state.available_dates
             if not dates:
-                self._warn('Dates', '請先按「Scan SLC dir → dates」取得日期清單。')
+                self._warn('Dates', ('請先按「Scan SLC dir → dates」取得日期清單。' if LANG == 'zh' else 'Please click "Scan SLC dir → dates" first to get the date list.'))
                 return
 
             s = self._strategy.get()
@@ -5936,7 +5941,7 @@ class InputPairFrame(ttk.Frame):
                 sel = [DAY_INTERVALS_ALL[i]
                        for i in self._day_lb.curselection()]
                 if not sel:
-                    self._warn('Day grid', '請在 Day intervals 清單中選至少一個間隔。')
+                    self._warn('Day grid', ('請在 Day intervals 清單中選至少一個間隔。' if LANG == 'zh' else 'Please select at least one interval in the Day intervals list.'))
                     return
                 pairs = pairs_grid(dates, sel)
 
@@ -5979,13 +5984,13 @@ class InputPairFrame(ttk.Frame):
             self._fill_bperp_async(iid_list)
 
             if pairs:
-                extra = (f'\n其中已納入專案內既有完成成果 {added_done} 對'
-                         f'（範圍一致，沿用不重做）。' if added_done else '')
-                self._info('Pairs', f'計算完成：{len(pairs)} 組 pair。{extra}\n'
-                           f'請確認右側 pair 清單後點「✓ 確認 → Tab 2」。')
+                extra = ((f'\n其中已納入專案內既有完成成果 {added_done} 對'
+                         f'（範圍一致，沿用不重做）。' if LANG == 'zh' else f'\nOf which {added_done} pair(s) reuse existing completed results in the project (same range, not redone).') if added_done else '')
+                self._info('Pairs', (f'計算完成：{len(pairs)} 組 pair。{extra}\n'
+                           f'請確認右側 pair 清單後點「✓ 確認 → Tab 2」。' if LANG == 'zh' else f'Calculation complete: {len(pairs)} pair(s).{extra}\nPlease confirm the pair list on the right, then click "✓ Confirm → Tab 2".'))
             else:
-                self._warn('Pairs', '產生 0 組 pair。\n'
-                           '日期數量不足或選取的 day-interval 無符合。')
+                self._warn('Pairs', ('產生 0 組 pair。\n'
+                           '日期數量不足或選取的 day-interval 無符合。' if LANG == 'zh' else 'Generated 0 pairs.\nNot enough dates, or no day-interval selection matched.'))
 
         except Exception as exc:
             self._err('Compute error', str(exc))
@@ -6079,7 +6084,7 @@ class InputPairFrame(ttk.Frame):
         st = self.app.state
         if not st.pairs:
             if not _from_cache_check:
-                self._warn('基線圖', '請先按「↻ Compute pairs」產生 pair 清單。')
+                self._warn(('基線圖' if LANG == 'zh' else 'Baseline plot'), ('請先按「↻ Compute pairs」產生 pair 清單。' if LANG == 'zh' else 'Please click "↻ Compute pairs" first to generate the pair list.'))
             return
         try:
             aoi_lat = None
@@ -6122,7 +6127,7 @@ class InputPairFrame(ttk.Frame):
                     for w in canvas_frame.winfo_children():
                         w.destroy()
                     tk.Label(canvas_frame,
-                             text=f'⚠ 繪圖失敗：\n{msg}',
+                             text=(f'⚠ 繪圖失敗：\n{msg}' if LANG == 'zh' else f'⚠ Plot failed:\n{msg}'),
                              fg='red', wraplength=700,
                              font=('TkDefaultFont', 10)).pack(expand=True, padx=20)
 
@@ -6167,11 +6172,11 @@ class InputPairFrame(ttk.Frame):
                             self._rebuild_pair_tree()
                             self.app.tab2.load_pairs()
                         # notification bar (bridge pairs + new-image pairs)
-                        msg = (f'🔗 自動納入 {len(bridge_new)} 對（橋接／新影像）：  '
+                        msg = ((f'🔗 自動納入 {len(bridge_new)} 對（橋接／新影像）：  ' if LANG == 'zh' else f'🔗 Auto-included {len(bridge_new)} pair(s) (bridge / new image):  ')
                                + '   '.join(f'{r} ↔ {s}'
                                             for r, s in bridge_new[:6]))
                         if len(bridge_new) > 6:
-                            msg += f'  … 等共 {len(bridge_new)} 對'
+                            msg += (f'  … 等共 {len(bridge_new)} 對' if LANG == 'zh' else f'  … {len(bridge_new)} pair(s) total')
                         bridge_var.set(msg)
                         if not _state.get('bridge_bar_visible'):
                             bridge_bar.pack(fill='x', before=ctrl)
@@ -6199,7 +6204,7 @@ class InputPairFrame(ttk.Frame):
                 # no longer used for on-screen display.
                 # Compute in background thread
                 tk.Label(canvas_frame,
-                         text='計算中，請稍候…',
+                         text=('計算中，請稍候…' if LANG == 'zh' else 'Calculating, please wait…'),
                          font=('TkDefaultFont', 12)).pack(expand=True)
 
                 pairs_snap = list(st.pairs)   # snapshot
@@ -6269,11 +6274,11 @@ class InputPairFrame(ttk.Frame):
             ctrl.pack(fill='x', padx=6, pady=4)
 
             # --- 增加干涉對 ---
-            add_frm = ttk.LabelFrame(ctrl, text='增加干涉對')
+            add_frm = ttk.LabelFrame(ctrl, text=('增加干涉對' if LANG == 'zh' else 'Add interferogram pair'))
             add_frm.pack(side='left', padx=(4, 8), pady=4)
 
             tk.Label(add_frm,
-                     text='格式: 20250101-20250113  20250201-20250213',
+                     text=('格式: 20250101-20250113  20250201-20250213' if LANG == 'zh' else 'Format: 20250101-20250113  20250201-20250213'),
                      font=('TkFixedFont', 8)).pack(anchor='w', padx=4)
             add_entry = ttk.Entry(add_frm, width=48)
             add_entry.pack(side='left', padx=4, pady=(0, 4))
@@ -6296,15 +6301,15 @@ class InputPairFrame(ttk.Frame):
                     else:
                         invalid_toks.append(tok)
                 if invalid_toks:
-                    messagebox.showwarning('日期格式錯誤',
-                        '以下 token 不是合法日期（需 yyyymmdd-yyyymmdd）：\n'
+                    messagebox.showwarning(('日期格式錯誤' if LANG == 'zh' else 'Date format error'),
+                        ('以下 token 不是合法日期（需 yyyymmdd-yyyymmdd）：\n' if LANG == 'zh' else 'The following tokens are not valid dates (need yyyymmdd-yyyymmdd):\n')
                         + '  ' + '\n  '.join(invalid_toks),
                         parent=win)
                     return
                 if not new_pairs:
-                    messagebox.showwarning('格式錯誤',
-                        '請用「yyyymmdd-yyyymmdd」格式，多對以空格分隔。\n'
-                        '例如: 20250101-20250113 20250201-20250213',
+                    messagebox.showwarning(('格式錯誤' if LANG == 'zh' else 'Format error'),
+                        ('請用「yyyymmdd-yyyymmdd」格式，多對以空格分隔。\n'
+                        '例如: 20250101-20250113 20250201-20250213' if LANG == 'zh' else 'Use the "yyyymmdd-yyyymmdd" format, separate multiple pairs with spaces.\nExample: 20250101-20250113 20250201-20250213'),
                         parent=win)
                     return
                 existing = set(f'{r}_{s}' for r, s in st.pairs)
@@ -6317,7 +6322,7 @@ class InputPairFrame(ttk.Frame):
                         _batch_seen.add(k)
                         added.append((r, s))
                 if not added:
-                    messagebox.showinfo('提示', '所有輸入的對都已存在清單中。',
+                    messagebox.showinfo(('提示' if LANG == 'zh' else 'Note'), ('所有輸入的對都已存在清單中。' if LANG == 'zh' else 'All entered pairs already exist in the list.'),
                                         parent=win)
                     return
                 st.pairs.extend(added)
@@ -6333,14 +6338,14 @@ class InputPairFrame(ttk.Frame):
                 add_entry.delete(0, 'end')
                 _redraw(augment=False)   # 手動編輯後不可自動擴充
 
-            ttk.Button(add_frm, text='確認新增', command=_add_pairs).pack(
+            ttk.Button(add_frm, text=('確認新增' if LANG == 'zh' else 'Confirm add'), command=_add_pairs).pack(
                 side='left', padx=4, pady=(0, 4))
 
             # --- 移除某幾天 ---
-            rm_frm = ttk.LabelFrame(ctrl, text='移除某幾天')
+            rm_frm = ttk.LabelFrame(ctrl, text=('移除某幾天' if LANG == 'zh' else 'Remove specific days'))
             rm_frm.pack(side='left', padx=(0, 8), pady=4)
 
-            tk.Label(rm_frm, text='日期 (yyyymmdd，空格分隔):',
+            tk.Label(rm_frm, text=('日期 (yyyymmdd，空格分隔):' if LANG == 'zh' else 'Dates (yyyymmdd, space-separated):'),
                      font=('TkFixedFont', 8)).pack(anchor='w', padx=4)
             rm_entry = ttk.Entry(rm_frm, width=30)
             rm_entry.pack(side='left', padx=4, pady=(0, 4))
@@ -6351,8 +6356,8 @@ class InputPairFrame(ttk.Frame):
                 if not tokens:
                     return
                 if bad:
-                    messagebox.showwarning('格式錯誤',
-                        f'以下日期格式不正確（需 8 位數字）：\n{", ".join(bad)}',
+                    messagebox.showwarning(('格式錯誤' if LANG == 'zh' else 'Format error'),
+                        (f'以下日期格式不正確（需 8 位數字）：\n{", ".join(bad)}' if LANG == 'zh' else f'The following dates are invalid (need 8 digits):\n{", ".join(bad)}'),
                         parent=win)
                     return
                 dates_set = set(tokens)
@@ -6366,26 +6371,26 @@ class InputPairFrame(ttk.Frame):
                 removed = before - len(st.pairs)
                 self.app.save_prefs()   # 立即存檔 → 排除不怕 GUI 被 kill 而遺失
                 if removed == 0:
-                    messagebox.showinfo('提示',
-                        f'這些日期已排除（清單中原本就沒有相關干涉對）。',
+                    messagebox.showinfo(('提示' if LANG == 'zh' else 'Note'),
+                        (f'這些日期已排除（清單中原本就沒有相關干涉對）。' if LANG == 'zh' else f'These dates were already excluded (no related pairs existed in the list).'),
                         parent=win)
                     return
                 self._rebuild_pair_tree()
                 self.app.tab2.load_pairs()
                 rm_entry.delete(0, 'end')
-                messagebox.showinfo('完成',
-                    f'已移除 {removed} 對（含 {", ".join(sorted(dates_set))}）。',
+                messagebox.showinfo(('完成' if LANG == 'zh' else 'Done'),
+                    (f'已移除 {removed} 對（含 {", ".join(sorted(dates_set))}）。' if LANG == 'zh' else f'Removed {removed} pair(s) (including {", ".join(sorted(dates_set))}).'),
                     parent=win)
                 _redraw(augment=False)   # 手動移除後不可自動把該日期當新影像加回
 
-            ttk.Button(rm_frm, text='確認移除', command=_remove_dates).pack(
+            ttk.Button(rm_frm, text=('確認移除' if LANG == 'zh' else 'Confirm remove'), command=_remove_dates).pack(
                 side='left', padx=4, pady=(0, 4))
 
             # --- Bperp 門檻篩選 ---
-            thr_frm = ttk.LabelFrame(ctrl, text='Bperp 門檻篩選')
+            thr_frm = ttk.LabelFrame(ctrl, text=('Bperp 門檻篩選' if LANG == 'zh' else 'Bperp threshold filter'))
             thr_frm.pack(side='left', padx=(0, 8), pady=4)
 
-            tk.Label(thr_frm, text='最大 Bperp (m) — 預設=現行最大值:',
+            tk.Label(thr_frm, text=('最大 Bperp (m) — 預設=現行最大值:' if LANG == 'zh' else 'Max Bperp (m) — default = current max:'),
                      font=('TkFixedFont', 8)).pack(anchor='w', padx=4)
             thr_entry = ttk.Entry(thr_frm, width=8)
             thr_entry.insert(0, '...')   # placeholder until current max is computed
@@ -6457,12 +6462,12 @@ class InputPairFrame(ttk.Frame):
                 try:
                     threshold = float(thr_entry.get().strip())
                 except ValueError:
-                    messagebox.showwarning('格式錯誤',
-                        '請輸入數字，例如: 200', parent=win)
+                    messagebox.showwarning(('格式錯誤' if LANG == 'zh' else 'Format error'),
+                        ('請輸入數字，例如: 200' if LANG == 'zh' else 'Please enter a number, e.g. 200'), parent=win)
                     return
                 if threshold <= 0:
-                    messagebox.showwarning('數值錯誤',
-                        '門檻值必須大於 0。', parent=win)
+                    messagebox.showwarning(('數值錯誤' if LANG == 'zh' else 'Value error'),
+                        ('門檻值必須大於 0。' if LANG == 'zh' else 'Threshold must be greater than 0.'), parent=win)
                     return
 
                 # Compute Bperp for every pair (ref→sec, not relative to network ref)
@@ -6485,16 +6490,16 @@ class InputPairFrame(ttk.Frame):
                         kept.append((ref, sec))
 
                 if not removed:
-                    messagebox.showinfo('篩選結果',
-                        f'所有 {len(st.pairs)} 對的 |Bperp| ≤ {threshold:.0f} m，\n無需移除。',
+                    messagebox.showinfo(('篩選結果' if LANG == 'zh' else 'Filter result'),
+                        (f'所有 {len(st.pairs)} 對的 |Bperp| ≤ {threshold:.0f} m，\n無需移除。' if LANG == 'zh' else f'All {len(st.pairs)} pair(s) have |Bperp| ≤ {threshold:.0f} m,\nno removal needed.'),
                         parent=win)
                     return
 
-                msg = (f'將移除 {len(removed)} 對（|Bperp| > {threshold:.0f} m）：\n\n'
+                msg = ((f'將移除 {len(removed)} 對（|Bperp| > {threshold:.0f} m）：\n\n' if LANG == 'zh' else f'Will remove {len(removed)} pair(s) (|Bperp| > {threshold:.0f} m):\n\n')
                        + '\n'.join(f'  {r}_{s}  {bp:+.0f} m' for r, s, bp in removed[:20])
-                       + (f'\n  …共 {len(removed)} 對' if len(removed) > 20 else '')
-                       + f'\n\n保留 {len(kept)} 對。確定篩選？')
-                if not messagebox.askyesno('確認篩選', msg, parent=win):
+                       + ((f'\n  …共 {len(removed)} 對' if LANG == 'zh' else f'\n  …and {len(removed)} more pairs') if len(removed) > 20 else '')
+                       + (f'\n\n保留 {len(kept)} 對。確定篩選？' if LANG == 'zh' else f'\n\nKeep {len(kept)} pairs. Confirm filter?'))
+                if not messagebox.askyesno(('確認篩選' if LANG == 'zh' else 'Confirm Filter'), msg, parent=win):
                     return
 
                 # 記錄被篩掉的對 → 跨重畫/重開都不再被自動擴充重新生成
@@ -6507,10 +6512,10 @@ class InputPairFrame(ttk.Frame):
                 self._rebuild_pair_tree()
                 self.app.tab2.load_pairs()
                 _redraw(augment=False)   # 篩選後不可自動把被篩掉的對重新生成
-                messagebox.showinfo('完成',
-                    f'已移除 {len(removed)} 對，保留 {len(kept)} 對。', parent=win)
+                messagebox.showinfo(('完成' if LANG == 'zh' else 'Done'),
+                    (f'已移除 {len(removed)} 對，保留 {len(kept)} 對。' if LANG == 'zh' else f'Removed {len(removed)} pairs, kept {len(kept)} pairs.'), parent=win)
 
-            ttk.Button(thr_frm, text='確認篩選', command=_filter_bperp).pack(
+            ttk.Button(thr_frm, text=('確認篩選' if LANG == 'zh' else 'Confirm Filter'), command=_filter_bperp).pack(
                 side='left', padx=4, pady=(0, 4))
 
             # --- 儲存 ---
@@ -6525,9 +6530,9 @@ class InputPairFrame(ttk.Frame):
                     parent=win)
                 if fp:
                     _state['fig'].savefig(fp, dpi=150, bbox_inches='tight')
-                    messagebox.showinfo('儲存', f'已儲存：{fp}', parent=win)
+                    messagebox.showinfo(('儲存' if LANG == 'zh' else 'Saved'), (f'已儲存：{fp}' if LANG == 'zh' else f'Saved: {fp}'), parent=win)
 
-            ttk.Button(ctrl, text='[S] 儲存圖片', command=_save).pack(
+            ttk.Button(ctrl, text=('[S] 儲存圖片' if LANG == 'zh' else '[S] Save Image'), command=_save).pack(
                 side='right', padx=8, pady=4)
 
             def _on_win_close():
@@ -6547,7 +6552,7 @@ class InputPairFrame(ttk.Frame):
             _redraw()
 
         except Exception as exc:
-            self._err('基線圖錯誤', str(exc))
+            self._err(('基線圖錯誤' if LANG == 'zh' else 'Baseline Plot Error'), str(exc))
 
     def collect_state(self):
         """Sync all Tab 1 widget values → app.state (called on Confirm and on close)."""
@@ -6619,21 +6624,21 @@ class InputPairFrame(ttk.Frame):
     def _confirm(self):
         st = self.app.state
         if not st.pairs:
-            self._err('Pairs', '請先按「↻ Compute pairs」產生 pair 清單。')
+            self._err('Pairs', ('請先按「↻ Compute pairs」產生 pair 清單。' if LANG == 'zh' else 'Please click "↻ Compute pairs" first to generate the pair list.'))
             return
         _proj_path = Path(self._project_var.get())
         if not _proj_path.is_dir():
             try:
                 _proj_path.mkdir(parents=True, exist_ok=True)
             except Exception as exc:
-                self._err('Project', f'無法建立 Project 資料夾:\n{_proj_path}\n{exc}')
+                self._err('Project', (f'無法建立 Project 資料夾:\n{_proj_path}\n{exc}' if LANG == 'zh' else f'Failed to create Project folder:\n{_proj_path}\n{exc}'))
                 return
         if not Path(self._snap_var.get()).is_dir():
-            self._err('SNAP', f'SNAP 安裝目錄找不到:\n{self._snap_var.get()}')
+            self._err('SNAP', (f'SNAP 安裝目錄找不到:\n{self._snap_var.get()}' if LANG == 'zh' else f'SNAP installation directory not found:\n{self._snap_var.get()}'))
             return
         if not Path(_GRAPHS_DIR).is_dir():
-            self._err('Graphs', f'Graphs 資料夾不存在:\n{_GRAPHS_DIR}\n'
-                      '請確認 snap2stamps/graphs/ 在 GUI 腳本旁邊。')
+            self._err('Graphs', (f'Graphs 資料夾不存在:\n{_GRAPHS_DIR}\n'
+                      '請確認 snap2stamps/graphs/ 在 GUI 腳本旁邊。' if LANG == 'zh' else f'Graphs folder does not exist:\n{_GRAPHS_DIR}\nPlease make sure snap2stamps/graphs/ is next to the GUI script.'))
             return
 
         self.collect_state()
@@ -6646,7 +6651,7 @@ class InputPairFrame(ttk.Frame):
         """🔍 按鈕：檢查 Project folder 是否已有完整輸出，詢問下一步。"""
         proj = self._project_var.get().strip()
         if not proj:
-            messagebox.showwarning('Project folder', '請先填入 Project folder 路徑。')
+            messagebox.showwarning('Project folder', ('請先填入 Project folder 路徑。' if LANG == 'zh' else 'Please enter the Project folder path first.'))
             return
         p = Path(proj)
 
@@ -6662,22 +6667,22 @@ class InputPairFrame(ttk.Frame):
 
         if not done_pairs:
             messagebox.showinfo(
-                '[?] 檢查結果',
-                f'路徑：{proj}\n\n'
+                ('[?] 檢查結果' if LANG == 'zh' else '[?] Check Result'),
+                (f'路徑：{proj}\n\n'
                 '尚未找到完整干涉對輸出（*_unw_tc.dim）。\n'
-                '請從 Tab 1 設定參數後執行 SNAP pipeline。')
+                '請從 Tab 1 設定參數後執行 SNAP pipeline。' if LANG == 'zh' else f'Path: {proj}\n\nNo complete interferogram pair output found yet (*_unw_tc.dim).\nPlease set parameters in Tab 1 and run the SNAP pipeline.'))
             return
 
         has_cfg = mp_cfg.exists()
-        msg = (f'路徑：{proj}\n\n'
+        msg = ((f'路徑：{proj}\n\n'
                f'✅  已完成干涉對：{len(done_pairs)} 對\n'
                f'    第一對：{done_pairs[0]}\n'
                f'    最後一對：{done_pairs[-1]}\n\n'
                f'MintPy cfg：{"✅ 存在" if has_cfg else "⚠️ 尚未產生"}\n\n'
                '要直接進入 MintPy 流程嗎？\n'
-               '（選「否」從 Tab 1 重新跑 SNAP pipeline）')
+               '（選「否」從 Tab 1 重新跑 SNAP pipeline）' if LANG == 'zh' else f'Path: {proj}\n\n✅  Completed pairs: {len(done_pairs)}\n    First pair: {done_pairs[0]}\n    Last pair: {done_pairs[-1]}\n\nMintPy cfg: {"✅ exists" if has_cfg else "⚠️ not generated yet"}\n\nGo straight to the MintPy workflow?\n(Choose "No" to rerun the SNAP pipeline from Tab 1)'))
 
-        ans = messagebox.askquestion('[?] 檢查結果', msg, icon='question')
+        ans = messagebox.askquestion(('[?] 檢查結果' if LANG == 'zh' else '[?] Check Result'), msg, icon='question')
         if ans == 'yes':
             # 把 project_dir 同步到 state，解鎖 Tab 3，跳過去
             self.app.state.project_dir = proj
@@ -6893,7 +6898,7 @@ class RunFrame(ttk.Frame):
             return
         n = len(active)
         size, rem = divmod(len(pairs), n)
-        parts = [f'{lbl}: {size + (1 if i < rem else 0)} 對'
+        parts = [(f'{lbl}: {size + (1 if i < rem else 0)} 對' if LANG == 'zh' else f'{lbl}: {size + (1 if i < rem else 0)} pairs')
                  for i, lbl in enumerate(active)]
         self._cluster_preview_var.set(
             ('分配: ' if LANG == 'zh' else 'Split: ') + '  |  '.join(parts))
@@ -6931,7 +6936,7 @@ class RunFrame(ttk.Frame):
     def _start(self):
         st = self.app.state
         if not st.pairs:
-            messagebox.showwarning('', '請先在 Tab 1 計算干涉對。')
+            messagebox.showwarning('', ('請先在 Tab 1 計算干涉對。' if LANG == 'zh' else 'Please compute pairs in Tab 1 first.'))
             return
 
         # 輸入與干涉對已就緒 → 先檢查專案是否已有完整 MintPy 輸出，
@@ -7002,11 +7007,11 @@ class RunFrame(ttk.Frame):
             def _apply():
                 for ref, sec in done:
                     if self._tree.exists(f'{ref}_{sec}'):
-                        self._update_row_host(ref, sec, 'done', '已完成')
+                        self._update_row_host(ref, sec, 'done', ('已完成' if LANG == 'zh' else 'Done'))
                 self._pbar['maximum'] = total
                 self._pbar['value'] = len(done)
                 self._progress_lbl.set(
-                    f'已完成 {len(done)} / 未完成 {len(missing)} / 共 {total}')
+                    (f'已完成 {len(done)} / 未完成 {len(missing)} / 共 {total}' if LANG == 'zh' else f'Done {len(done)} / Incomplete {len(missing)} / Total {total}'))
                 # 重開 GUI 偵測到已跑過的對 → 自動建基線網路圖 (僅建一次)
                 if done and self._baseline_canvas is None:
                     self._ensure_baseline_view()
@@ -7021,9 +7026,9 @@ class RunFrame(ttk.Frame):
         dlg.title(_T('dlg_project_ready_title'))
         dlg.transient(self.app)
         dlg.resizable(False, False)
-        msg = (f'專案資料夾：\n  {self.app.state.project_dir}\n\n'
+        msg = ((f'專案資料夾：\n  {self.app.state.project_dir}\n\n'
                f'已偵測到 {n_done}/{n_total} 對已有完整 MintPy 輸出'
-               f'（*_unw_tc.dim）。\n\n請選擇下一步：')
+               f'（*_unw_tc.dim）。\n\n請選擇下一步：' if LANG == 'zh' else f'Project folder:\n  {self.app.state.project_dir}\n\nDetected {n_done}/{n_total} pairs with complete MintPy output (*_unw_tc.dim).\n\nPlease choose the next step:'))
         ttk.Label(dlg, text=msg, justify='left').pack(
             padx=16, pady=(14, 8), anchor='w')
         bf = ttk.Frame(dlg)
@@ -7033,14 +7038,14 @@ class RunFrame(ttk.Frame):
             result['val'] = v
             dlg.destroy()
 
-        ttk.Button(bf, text='重跑全部',
+        ttk.Button(bf, text=('重跑全部' if LANG == 'zh' else 'Rerun all'),
                    command=lambda: _choose('rerun')).pack(side='left', padx=4)
         if n_done < n_total:
-            ttk.Button(bf, text=f'只補缺漏 ({n_total - n_done})',
+            ttk.Button(bf, text=(f'只補缺漏 ({n_total - n_done})' if LANG == 'zh' else f'Fill missing only ({n_total - n_done})'),
                        command=lambda: _choose('missing')).pack(side='left', padx=4)
-        ttk.Button(bf, text='直接進入 MintPy',
+        ttk.Button(bf, text=('直接進入 MintPy' if LANG == 'zh' else 'Go straight to MintPy'),
                    command=lambda: _choose('mintpy')).pack(side='left', padx=4)
-        ttk.Button(bf, text='取消',
+        ttk.Button(bf, text=('取消' if LANG == 'zh' else 'Cancel'),
                    command=lambda: _choose('cancel')).pack(side='left', padx=4)
         dlg.bind('<Escape>', lambda e: _choose('cancel'))
         dlg.grab_set()
@@ -7111,11 +7116,11 @@ class RunFrame(ttk.Frame):
         if bad:
             detail = '\n'.join(f'  {d}: {r}' for d, r in sorted(bad.items()))
             proceed = messagebox.askyesno(
-                'SLC 資料不完整',
-                f'以下 {len(bad)} 個日期的 SLC 有問題：\n{detail}\n\n'
+                ('SLC 資料不完整' if LANG == 'zh' else 'Incomplete SLC data'),
+                (f'以下 {len(bad)} 個日期的 SLC 有問題：\n{detail}\n\n'
                 '繼續執行可能導致這些日期的 pair 失敗。\n'
                 '建議先到 Tab 1 → ASF Download 補下缺漏檔案。\n\n'
-                '確定仍要繼續？',
+                '確定仍要繼續？' if LANG == 'zh' else f'The SLC for the following {len(bad)} date(s) has issues:\n{detail}\n\nProceeding may cause pairs on these dates to fail.\nRecommended: go to Tab 1 → ASF Download to fetch the missing files first.\n\nContinue anyway?'),
                 parent=self.app)
             if not proceed:
                 return
@@ -7129,7 +7134,7 @@ class RunFrame(ttk.Frame):
         self._log.delete('1.0', 'end')
         if bad:
             self._log.insert('end',
-                f'[warn] {len(bad)} SLC 有問題: {list(bad.keys())}\n')
+                (f'[warn] {len(bad)} SLC 有問題: {list(bad.keys())}\n' if LANG == 'zh' else f'[warn] {len(bad)} SLC file(s) have issues: {list(bad.keys())}\n'))
         self._log.insert('end', f'[start] {len(st.pairs)} pairs\n')
         self._run_next()
 
@@ -7148,7 +7153,7 @@ class RunFrame(ttk.Frame):
         sb.config(command=txt.yview)
         txt.insert('1.0', text)
         txt.configure(state='disabled')
-        ttk.Button(top, text='關閉', command=top.destroy).pack(pady=4)
+        ttk.Button(top, text=('關閉' if LANG == 'zh' else 'Close'), command=top.destroy).pack(pady=4)
 
     def _analyze_failures(self):
         """掃描 logs 分析失敗原因 → 彈窗顯示分類/明細/建議修正 + 完成統計。"""
@@ -7157,7 +7162,7 @@ class RunFrame(ttk.Frame):
         from collections import Counter
         proj = self.app.state.project_dir
         if not proj or not Path(proj).is_dir():
-            messagebox.showwarning('', '專案資料夾未設定。')
+            messagebox.showwarning('', ('專案資料夾未設定。' if LANG == 'zh' else 'Project folder not set.'))
             return
         try:
             sys.path.insert(0, str(Path(__file__).parent))
@@ -7165,7 +7170,7 @@ class RunFrame(ttk.Frame):
             importlib.reload(af)
             res = af.analyze_project(proj)
         except Exception as exc:
-            messagebox.showerror('分析失敗', f'{exc}')
+            messagebox.showerror(('分析失敗' if LANG == 'zh' else 'Analysis failed'), f'{exc}')
             return
         logs_dir = Path(proj) / 'logs'
         done: set = set()
@@ -7175,16 +7180,16 @@ class RunFrame(ttk.Frame):
             except Exception:
                 pass
         total = len(self.app.state.pairs)
-        lines = [f'專案: {proj}',
-                 f'完成 {len(done)}  失敗 {len(res)}  總 {total}', '']
+        lines = [(f'專案: {proj}' if LANG == 'zh' else f'Project: {proj}'),
+                 (f'完成 {len(done)}  失敗 {len(res)}  總 {total}' if LANG == 'zh' else f'Done {len(done)}  Failed {len(res)}  Total {total}'), '']
         if res:
-            lines.append('失敗原因分類:')
+            lines.append(('失敗原因分類:' if LANG == 'zh' else 'Failure category breakdown:'))
             for cat, n in Counter(v['category'] for v in res.values()).most_common():
                 lines.append(f'  {n:3d}  {cat}')
-            lines.append('\n每對明細:')
+            lines.append(('\n每對明細:' if LANG == 'zh' else '\nPer-pair details:'))
             for pair, v in sorted(res.items()):
                 lines.append(f'  {pair}  [{v["host"]}] {v["step"]} → {v["category"]}')
-            lines.append('\n建議修正:')
+            lines.append(('\n建議修正:' if LANG == 'zh' else '\nSuggested fixes:'))
             seen: set = set()
             for v in res.values():
                 if v['category'] in seen:
@@ -7192,25 +7197,25 @@ class RunFrame(ttk.Frame):
                 seen.add(v['category'])
                 lines.append(f'  • [{v["category"]}] {v["fix"]}')
         else:
-            lines.append('沒有失敗的干涉對 ✓')
-        self._show_text_dialog('失敗分析', '\n'.join(lines))
+            lines.append(('沒有失敗的干涉對 ✓' if LANG == 'zh' else 'No failed pairs ✓'))
+        self._show_text_dialog(('失敗分析' if LANG == 'zh' else 'Failure Analysis'), '\n'.join(lines))
 
     def _rerun_failed(self):
         """只把『磁碟上未完成』的干涉對重新分配給目前勾選的工作站。
         已完成的(磁碟有完整 *_unw_tc.dim)不再處理；未完成的重新派工。"""
         if not self.app.state.pairs:
-            messagebox.showwarning('', '請先計算干涉對 (Tab 1)。')
+            messagebox.showwarning('', ('請先計算干涉對 (Tab 1)。' if LANG == 'zh' else 'Please compute pairs first (Tab 1).'))
             return
         done, missing = self._count_done_pairs()
         if not missing:
-            messagebox.showinfo('', f'全部 {len(done)} 對都已完成 ✓ 無需重跑。')
+            messagebox.showinfo('', (f'全部 {len(done)} 對都已完成 ✓ 無需重跑。' if LANG == 'zh' else f'All {len(done)} pairs are already done ✓ No rerun needed.'))
             return
         if messagebox.askyesno(
-                '重跑未完成',
-                f'磁碟確認：已完成 {len(done)}、未完成 {len(missing)}。\n\n'
+                ('重跑未完成' if LANG == 'zh' else 'Rerun incomplete'),
+                (f'磁碟確認：已完成 {len(done)}、未完成 {len(missing)}。\n\n'
                 f'將把這 {len(missing)} 對未完成的重新分配給目前勾選的工作站\n'
                 f'（已完成的不再處理；失敗/中斷的接續重做）。\n\n'
-                f'提示：請先取消勾選已知故障的工作站。要開始嗎?'):
+                f'提示：請先取消勾選已知故障的工作站。要開始嗎?' if LANG == 'zh' else f'Disk check: {len(done)} done, {len(missing)} incomplete.\n\nThe {len(missing)} incomplete pairs will be redistributed to the currently checked hosts\n(completed pairs are skipped; failed/interrupted ones are redone).\n\nTip: uncheck any known faulty hosts first. Start now?')):
             self._start_cluster(pairs_to_run=missing)
 
     # ── cluster execution ────────────────────────────────────────────────
@@ -7246,18 +7251,18 @@ class RunFrame(ttk.Frame):
             if not ok:
                 from tkinter import simpledialog
                 pw = simpledialog.askstring(
-                    'SSD Swap 未啟用',
-                    f'本機 Swapfile 尚未啟用，需要 sudo 密碼：\n  {_img}\n\n'
-                    f'（或先在 Tab1 的「sudo 密碼」欄填好；取消 → 不啟用繼續跑可能 OOM）',
+                    ('SSD Swap 未啟用' if LANG == 'zh' else 'SSD Swap Not Enabled'),
+                    (f'本機 Swapfile 尚未啟用，需要 sudo 密碼：\n  {_img}\n\n'
+                    f'（或先在 Tab1 的「sudo 密碼」欄填好；取消 → 不啟用繼續跑可能 OOM）' if LANG == 'zh' else f'Local swapfile is not enabled yet, sudo password required:\n  {_img}\n\n(Or fill in the "sudo password" field in Tab 1 first; Cancel → continuing without swap may cause OOM)'),
                     show='*', parent=self.app)
                 if pw:
                     ok, msg = _enable_swap(_img, pw)
             if not ok:
                 return messagebox.askyesno(
-                    '⚠ 本機 Swap 未啟用',
-                    f'無法啟用本機 Swap：{msg}\n\n'
+                    ('⚠ 本機 Swap 未啟用' if LANG == 'zh' else '⚠ Local Swap Not Enabled'),
+                    (f'無法啟用本機 Swap：{msg}\n\n'
                     f'未啟用 Swap 在記憶體不足時可能導致 OOM Killed。\n\n'
-                    f'確定要繼續（無 Swap 保護）？',
+                    f'確定要繼續（無 Swap 保護）？' if LANG == 'zh' else f'Failed to enable local Swap: {msg}\n\nWithout Swap enabled, low memory may cause OOM Killed.\n\nContinue anyway (without Swap protection)?'),
                     icon='warning', parent=self.app)
 
         # ── 遠端機器 swap 狀態：SSH 快速確認（timeout 5s/台）────────────────
@@ -7279,8 +7284,8 @@ class RunFrame(ttk.Frame):
         # ── 有遠端未啟用 swap → 提醒（不阻擋，使用者自行決定）──────────────
         if _remote_no_swap:
             messagebox.showwarning(
-                '⚠ 部分機器 Swap 未啟用',
-                f'以下遠端機器的 Swap 尚未啟用，記憶體不足時可能 OOM Killed：\n\n'
+                ('⚠ 部分機器 Swap 未啟用' if LANG == 'zh' else '⚠ Some Hosts Have Swap Not Enabled'),
+                (f'以下遠端機器的 Swap 尚未啟用，記憶體不足時可能 OOM Killed：\n\n'
                 f'  {", ".join(_remote_no_swap)}\n\n'
                 f'── 若尚未建立 swap（首次設定）──\n'
                 f'  sudo fallocate -l 100G ~/snap_swap.img\n'
@@ -7291,7 +7296,7 @@ class RunFrame(ttk.Frame):
                 f'  echo "$SWAP_ABS none swap sw 0 0" | sudo tee -a /etc/fstab\n\n'
                 f'── 若已建立但尚未啟用 ──\n'
                 f'  sudo swapon ~/snap_swap.img\n\n'
-                f'（按確認繼續；或先登入各機設好 Swap 後再按「叢集開始」）',
+                f'（按確認繼續；或先登入各機設好 Swap 後再按「叢集開始」）' if LANG == 'zh' else f'The following remote hosts do not have Swap enabled; low memory may cause OOM Killed:\n\n  {", ".join(_remote_no_swap)}\n\n── If swap has not been created yet (first-time setup) ──\n  sudo fallocate -l 100G ~/snap_swap.img\n  sudo chmod 600 ~/snap_swap.img\n  sudo mkswap ~/snap_swap.img\n  sudo swapon ~/snap_swap.img\n  SWAP_ABS=$(realpath ~/snap_swap.img)\n  echo "$SWAP_ABS none swap sw 0 0" | sudo tee -a /etc/fstab\n\n── If already created but not enabled ──\n  sudo swapon ~/snap_swap.img\n\n(Click OK to continue; or log into each host to set up Swap first, then click "Cluster Start")'),
                 parent=self.app)
         # 全部都有 swap（或使用者確認繼續）→ 靜默通過
         return True
@@ -7303,13 +7308,13 @@ class RunFrame(ttk.Frame):
         """
         st = self.app.state
         if not st.pairs:
-            messagebox.showwarning('', '請先在 Tab 1 計算干涉對。')
+            messagebox.showwarning('', ('請先在 Tab 1 計算干涉對。' if LANG == 'zh' else 'Please compute pairs in Tab 1 first.'))
             return
 
         active = [(lbl, None if lbl in ('本機', 'Local') else lbl)
                   for lbl, v in self._cluster_host_vars.items() if v.get()]
         if not active:
-            messagebox.showwarning('', '請至少選擇一台主機。')
+            messagebox.showwarning('', ('請至少選擇一台主機。' if LANG == 'zh' else 'Please select at least one host.'))
             return
 
         if not self._preflight_swap(active):
@@ -7335,10 +7340,10 @@ class RunFrame(ttk.Frame):
         if not base_pairs:
             # 沒有未完成 → 把已完成標綠, 不派工
             for ref, sec in done_pairs:
-                self._update_row_host(ref, sec, 'done', '已完成')
+                self._update_row_host(ref, sec, 'done', ('已完成' if LANG == 'zh' else 'Done'))
             messagebox.showinfo(
-                '', f'全部 {len(st.pairs)} 對都已完成 ✓ 無需處理。\n'
-                    f'(如要強制重跑請用 ▶ 開始 → 重跑全部)')
+                '', (f'全部 {len(st.pairs)} 對都已完成 ✓ 無需處理。\n'
+                    f'(如要強制重跑請用 ▶ 開始 → 重跑全部)' if LANG == 'zh' else f'All {len(st.pairs)} pairs are already done ✓ Nothing to process.\n(To force a rerun, use ▶ Start → Rerun all)'))
             return
         # Sort pairs by ref date to reduce simultaneous split-file writes
         sorted_pairs = sorted(base_pairs, key=lambda p: (p[0], p[1]))
@@ -7409,7 +7414,7 @@ class RunFrame(ttk.Frame):
 
         # 已完成的標綠(不重跑, 基線圖也轉綠); 派工的標 cluster(排隊, 灰)
         for ref, sec in done_pairs:
-            self._update_row_host(ref, sec, 'done', '已完成')
+            self._update_row_host(ref, sec, 'done', ('已完成' if LANG == 'zh' else 'Done'))
         for lbl, chunk in self._cluster_chunks.items():
             for ref, sec in chunk:
                 self._update_row_host(ref, sec, 'cluster', lbl)
@@ -7613,7 +7618,7 @@ class RunFrame(ttk.Frame):
         for ref, sec, state in marks:
             if self._row_status(ref, sec) == 'done':
                 continue
-            host = '已完成' if state == 'done' else label
+            host = ('已完成' if LANG == 'zh' else 'Done') if state == 'done' else label
             self._update_row_host(ref, sec, state, host)
         self._sync_cluster_pbar()
 
@@ -7648,7 +7653,7 @@ class RunFrame(ttk.Frame):
                 ssh_host = self._cluster_host_ssh.get(label)
                 self._cluster_log(
                     label,
-                    f'[{label}] ↩ 搶工: 接手 {len(stolen)} 對未完成 → 繼續跑\n')
+                    (f'[{label}] ↩ 搶工: 接手 {len(stolen)} 對未完成 → 繼續跑\n' if LANG == 'zh' else f'[{label}] ↩ Work-steal: took over {len(stolen)} incomplete pairs → continuing\n'))
                 threading.Thread(
                     target=self._run_on_host,
                     args=(label, ssh_host, self._cluster_worker_script,
@@ -7694,15 +7699,15 @@ class RunFrame(ttk.Frame):
         total = len(self.app.state.pairs)
         for ref, sec in done:
             if self._tree.exists(f'{ref}_{sec}'):
-                self._update_row_host(ref, sec, 'done', '已完成')
+                self._update_row_host(ref, sec, 'done', ('已完成' if LANG == 'zh' else 'Done'))
         self._pbar['maximum'] = total
         self._pbar['value'] = len(done)
         self._progress_lbl.set(
-            f'已完成 {len(done)} / 未完成 {len(missing)} / 共 {total}')
+            (f'已完成 {len(done)} / 未完成 {len(missing)} / 共 {total}' if LANG == 'zh' else f'Done {len(done)} / Incomplete {len(missing)} / Total {total}'))
 
         if not missing:
             # 磁碟確認全部完成 → 才解鎖 MintPy
-            self._log.insert('end', '[resume] 磁碟確認所有干涉對已完成，解鎖 Tab 3。\n')
+            self._log.insert('end', ('[resume] 磁碟確認所有干涉對已完成，解鎖 Tab 3。\n' if LANG == 'zh' else '[resume] Disk check confirms all pairs are done, unlocking Tab 3.\n'))
             self._log.see('end')
             self.app.notebook.tab(2, state='normal')
             self.app.tab3.init_cfg()
@@ -7710,16 +7715,16 @@ class RunFrame(ttk.Frame):
 
         # 尚有未完成 → 詢問「是否繼續處理未完成」(不是問跑 MintPy)
         msg = (
-            f'偵測到先前叢集記錄（{ts_str}）。\n\n'
+            (f'偵測到先前叢集記錄（{ts_str}）。\n\n'
             f'磁碟實際完成度：\n'
             f'  ✓ 已完成 {len(done)} 對\n'
             f'  ⬜ 未完成 {len(missing)} 對\n'
             f'  共 {total} 對\n\n'
             f'是否現在繼續處理未完成的 {len(missing)} 對？\n'
             f'（會分配給「目前勾選」的工作站；建議先取消勾選已知故障機）\n\n'
-            f'選「是」立即開始；選「否」稍後手動調整機器再按「↻ 重跑未完成」。'
+            f'選「是」立即開始；選「否」稍後手動調整機器再按「↻ 重跑未完成」。' if LANG == 'zh' else f'Detected a previous cluster record ({ts_str}).\n\nActual completion on disk:\n  ✓ Done {len(done)} pairs\n  ⬜ Incomplete {len(missing)} pairs\n  Total {total} pairs\n\nContinue processing the {len(missing)} incomplete pairs now?\n(Will be assigned to the "currently checked" hosts; recommended to uncheck known faulty hosts first)\n\nChoose "Yes" to start immediately; choose "No" to adjust hosts manually later and click "↻ Rerun incomplete".')
         )
-        if messagebox.askyesno('繼續處理未完成', msg, parent=self.app):
+        if messagebox.askyesno(('繼續處理未完成' if LANG == 'zh' else 'Continue Processing Incomplete'), msg, parent=self.app):
             self._start_cluster(pairs_to_run=missing)
         else:
             self._cluster_resume_dismissed = True
@@ -7836,7 +7841,7 @@ class RunFrame(ttk.Frame):
                          ssh_host, f'pkill -f {shlex.quote(proj)}'],
                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                         timeout=12)
-                self._cluster_log(lbl, f'[{lbl}] 清除殘留舊程序 (本專案)\n')
+                self._cluster_log(lbl, (f'[{lbl}] 清除殘留舊程序 (本專案)\n' if LANG == 'zh' else f'[{lbl}] Cleared leftover old processes (this project)\n'))
             except Exception:
                 pass
 
@@ -7929,10 +7934,10 @@ class RunFrame(ttk.Frame):
                 except Exception:
                     pass
             self._baseline_frame = ttk.Frame(self._log_nb)
-            self._log_nb.add(self._baseline_frame, text='基線網路')
+            self._log_nb.add(self._baseline_frame, text=('基線網路' if LANG == 'zh' else 'Baseline Network'))
         for w in self._baseline_frame.winfo_children():
             w.destroy()
-        tk.Label(self._baseline_frame, text='基線圖計算中…',
+        tk.Label(self._baseline_frame, text=('基線圖計算中…' if LANG == 'zh' else 'Computing baseline plot…'),
                  font=('TkDefaultFont', 11)).pack(expand=True)
         self._baseline_canvas = None
         self._baseline_edges = {}
@@ -7943,7 +7948,7 @@ class RunFrame(ttk.Frame):
             aoi_lat = (float(st.latmin) + float(st.latmax)) / 2.0
         except (TypeError, ValueError):
             aoi_lat = None
-        title = f'{Path(st.project_dir).name} 即時進度'
+        title = (f'{Path(st.project_dir).name} 即時進度' if LANG == 'zh' else f'{Path(st.project_dir).name} Live Progress')
         proj = st.project_dir
 
         def _compute():
@@ -7964,7 +7969,7 @@ class RunFrame(ttk.Frame):
             return
         for w in self._baseline_frame.winfo_children():
             w.destroy()
-        tk.Label(self._baseline_frame, text=f'基線圖失敗：\n{msg}',
+        tk.Label(self._baseline_frame, text=(f'基線圖失敗：\n{msg}' if LANG == 'zh' else f'Baseline plot failed:\n{msg}'),
                  fg='red', wraplength=600, justify='left').pack(expand=True, padx=10)
 
     def _embed_baseline(self, fig, edges):
@@ -8052,43 +8057,43 @@ class RunFrame(ttk.Frame):
         # 把磁碟確認完成的標綠 (host 程序崩潰早退也能反映真實狀態)
         for ref, sec in done_pairs:
             if self._tree.exists(f'{ref}_{sec}'):
-                self._update_row_host(ref, sec, 'done', '已完成')
+                self._update_row_host(ref, sec, 'done', ('已完成' if LANG == 'zh' else 'Done'))
         self._pbar['maximum'] = total
         self._pbar['value'] = done
-        self._progress_lbl.set(f'已完成 {done} / 未完成 {len(missing)} / 共 {total}')
+        self._progress_lbl.set((f'已完成 {done} / 未完成 {len(missing)} / 共 {total}' if LANG == 'zh' else f'Done {done} / Incomplete {len(missing)} / Total {total}'))
         self.app.refresh_baseline_legends()  # 讓基線圖圖例計數與最終狀態同步
         self._log.insert(
-            'end', f'\n[done] 磁碟確認完成 {done}/{total}，未完成 {len(missing)}。\n')
+            'end', (f'\n[done] 磁碟確認完成 {done}/{total}，未完成 {len(missing)}。\n' if LANG == 'zh' else f'\n[done] Disk check: {done}/{total} done, {len(missing)} incomplete.\n'))
         self._log.see('end')
 
         if missing:
             # 尚未全部完成 → 不解鎖 MintPy，提示用「重跑未完成」接續
             self._log.insert(
-                'end', f'[!] 還有 {len(missing)} 對未完成；請取消勾選故障機後按'
-                       f'「↻ 重跑未完成」繼續 (只會處理未完成的)。\n')
+                'end', (f'[!] 還有 {len(missing)} 對未完成；請取消勾選故障機後按'
+                       f'「↻ 重跑未完成」繼續 (只會處理未完成的)。\n' if LANG == 'zh' else f'[!] {len(missing)} pairs still incomplete; please uncheck faulty hosts then click "↻ Rerun incomplete" to continue (only incomplete pairs will be processed).\n'))
             self._log.see('end')
             messagebox.showwarning(
-                '尚未全部完成',
-                f'已完成 {done}/{total}，還有 {len(missing)} 對未完成。\n'
+                ('尚未全部完成' if LANG == 'zh' else 'Not All Done Yet'),
+                (f'已完成 {done}/{total}，還有 {len(missing)} 對未完成。\n'
                 f'MintPy 尚未解鎖。\n\n'
                 f'請取消勾選故障工作站後按「↻ 重跑未完成」，\n'
-                f'只會把未完成的重新分配給健康機器。')
+                f'只會把未完成的重新分配給健康機器。' if LANG == 'zh' else f'Done {done}/{total}, {len(missing)} pairs still incomplete.\nMintPy not unlocked yet.\n\nPlease uncheck faulty hosts then click "↻ Rerun incomplete";\nonly the incomplete pairs will be reassigned to healthy hosts.'))
             return
 
         # 全部完成 → 檢查網路連通性 (無斷點) 才解鎖 MintPy
         bridges = find_bridge_pairs(list(self.app.state.pairs))
         if bridges:
             messagebox.showwarning(
-                'InSAR 網路有斷點',
-                f'{total} 對全部完成, 但網路不連續 — 偵測到 {len(bridges)} 處'
+                ('InSAR 網路有斷點' if LANG == 'zh' else 'InSAR Network Has Gaps'),
+                (f'{total} 對全部完成, 但網路不連續 — 偵測到 {len(bridges)} 處'
                 f'斷點/孤立子網路。\nMintPy SBAS 需要連通網路。\n\n'
-                f'請在基線圖用「增加干涉對」補上橋接後再進入 MintPy。')
+                f'請在基線圖用「增加干涉對」補上橋接後再進入 MintPy。' if LANG == 'zh' else f'All {total} pairs are done, but the network is not connected — detected {len(bridges)} gap(s)/isolated sub-networks.\nMintPy SBAS requires a connected network.\n\nPlease use "Add pairs" in the baseline plot to add bridging pairs before entering MintPy.'))
             return
         self.app.notebook.tab(2, state='normal')
         self.app.tab3.init_cfg()
-        messagebox.showinfo('全部完成',
-                            f'{total}/{total} 對全部完成 ✓ 網路連續無斷點。\n'
-                            f'Tab 3 MintPy 已解鎖。')
+        messagebox.showinfo(('全部完成' if LANG == 'zh' else 'All Done'),
+                            (f'{total}/{total} 對全部完成 ✓ 網路連續無斷點。\n'
+                            f'Tab 3 MintPy 已解鎖。' if LANG == 'zh' else f'{total}/{total} pairs all done ✓ Network is connected with no gaps.\nTab 3 MintPy is now unlocked.'))
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -8186,6 +8191,75 @@ GitHub  : https://github.com/insarlab/MintPy
 範例    : https://github.com/insarlab/MintPy-tutorial
 """
 
+_MINTPY_TOOLS_HELP_EN = """\
+═══════════════════════════════════════════════════════════════════════
+ MintPy Post-processing Tools Reference  (https://github.com/insarlab/MintPy)
+ Type commands below in the terminal, or copy and paste to run
+═══════════════════════════════════════════════════════════════════════
+
+━━ 1. Data Info ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+info.py inputs/ifgramStack.h5              # show all datasets and attributes
+info.py inputs/ifgramStack.h5 --date       # list all dates
+info.py timeseries.h5 --date               # time series date list
+info.py velocity.h5                        # velocity file attributes
+
+━━ 2. Image Display ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+view.py inputs/ifgramStack.h5 unwrapPhase  # show unwrapped phase (all pairs)
+view.py inputs/ifgramStack.h5 coherence    # show coherence
+view.py timeseries.h5                      # deformation time series (each date)
+view.py velocity.h5                        # line-of-sight velocity map (mm/yr)
+view.py temporalCoherence.h5               # temporal coherence map (0~1)
+view.py velocity.h5 --dem inputs/geometryGeo.h5  # overlay DEM shading
+
+━━ 3. Interactive Time Series ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+tsview.py timeseries.h5                    # click a pixel to show its time series
+tsview.py timeseries_demErr.h5             # with DEM error correction applied
+tsview.py timeseries_demErr_ramp.h5        # with phase ramp removed
+
+━━ 4. Masking ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+mask.py temporalCoherence.h5 -m 0.7       # generate mask for temporal coherence ≥ 0.7
+mask.py timeseries.h5 -m maskTempCoh.h5   # apply mask to time series
+
+━━ 5. Geocoding (radar coordinates → geo coordinates) ━━━━━━━━━━━━━━━━━━━━━━━━
+geocode.py timeseries_demErr.h5 -l inputs/geometryGeo.h5
+geocode.py velocity.h5           -l inputs/geometryGeo.h5
+geocode.py temporalCoherence.h5  -l inputs/geometryGeo.h5
+# output gets geo_ prefix, e.g. geo_velocity.h5
+
+━━ 6. Export Formats ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ── GeoTIFF (GDAL) ────────────────────────────────────────────────────────────
+save_gdal.py geo_velocity.h5                        # → geo_velocity.tif
+save_gdal.py geo_timeseries_demErr.h5 --date 20251030  # specific date
+save_gdal.py geo_timeseries_demErr.h5 --date-list dates.txt
+
+# ── GMT .grd (NetCDF-3) ──────────────────────────────────────────────────
+save_gmt.py geo_velocity.h5                         # → geo_velocity.grd
+
+# ── HDF-EOS5 (NASA standard format) ──────────────────────────────
+save_hdfeos5.py timeseries_demErr.h5                # → S1*.he5
+
+# ── ROIPAC .unw (StaMPS input) ──────────────────────────────
+save_roipac.py timeseries_demErr.h5
+
+━━ 7. Common Workflows ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Run the full smallbaselineApp (use the ▶ button above, or):
+smallbaselineApp.py smallbaselineApp.cfg
+
+# Run a specific step only:
+smallbaselineApp.py smallbaselineApp.cfg --dostep load_data
+smallbaselineApp.py smallbaselineApp.cfg --dostep reference_point
+smallbaselineApp.py smallbaselineApp.cfg --dostep network_inversion
+smallbaselineApp.py smallbaselineApp.cfg --dostep velocity
+
+# Rerun from a specific step:
+smallbaselineApp.py smallbaselineApp.cfg --start network_inversion
+
+━━ 8. References ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GitHub  : https://github.com/insarlab/MintPy
+Docs    : https://mintpy.readthedocs.io
+Examples: https://github.com/insarlab/MintPy-tutorial
+"""
+
 
 # ─────────────────────────────────────────────────────────────────────────
 # Embedded terminal widget
@@ -8243,7 +8317,7 @@ class _TerminalWidget(ttk.Frame):
 
         self._append(f'# conda env: {self._env_name or "system"}  '
                      f'cwd: {self._cwd}\n', 'info')
-        self._append('# 支援 cd 切換目錄；上下鍵瀏覽歷史；Tab 不補全\n', 'info')
+        self._append(('# 支援 cd 切換目錄；上下鍵瀏覽歷史；Tab 不補全\n' if LANG == 'zh' else '# Supports cd to change directory; use up/down arrows to browse history; Tab does not autocomplete\n'), 'info')
 
     # ── public API ───────────────────────────────────────────────────────
     def set_cwd(self, cwd: str):
@@ -8423,7 +8497,7 @@ class MintPyFrame(ttk.Frame):
         ttk.Button(btns, text=_T('btn_save_cfg'),
                    command=self._save_cfg).pack(side='left', padx=4)
         # 反演加權 (weightFunc): var=同調加權(近GNSS)/no=均權(低同調植被)/coh/fim
-        ttk.Label(btns, text='反演加權:').pack(side='left', padx=(12, 2))
+        ttk.Label(btns, text=('反演加權:' if LANG == 'zh' else 'Inversion weighting:')).pack(side='left', padx=(12, 2))
         self._weight_var = tk.StringVar(
             value=getattr(self.app.state, 'mp_weight_func', 'var'))
         _wcb = ttk.Combobox(btns, textvariable=self._weight_var, width=5,
@@ -8488,12 +8562,12 @@ class MintPyFrame(ttk.Frame):
 
         # ── sub-tab A: post-processing tools reference ────────────────────
         tools_frame = ttk.Frame(sub_nb)
-        sub_nb.add(tools_frame, text='後處理工具說明')
+        sub_nb.add(tools_frame, text=('後處理工具說明' if LANG == 'zh' else 'Post-processing Tools Reference'))
         tools_txt = scrolledtext.ScrolledText(
             tools_frame, height=10, font=('Consolas', 9),
             wrap='none', bg='#f8f8f8', exportselection=False)
         tools_txt.pack(fill='both', expand=True, padx=2, pady=2)
-        tools_txt.insert('1.0', _MINTPY_TOOLS_HELP)
+        tools_txt.insert('1.0', _MINTPY_TOOLS_HELP if LANG == 'zh' else _MINTPY_TOOLS_HELP_EN)
         tools_txt.config(state='disabled')
 
         # ── sub-tab B: export ────────────────────────────────────────────
@@ -8503,7 +8577,7 @@ class MintPyFrame(ttk.Frame):
 
         # ── sub-tab C: terminal ───────────────────────────────────────────
         term_frame = ttk.Frame(sub_nb)
-        sub_nb.add(term_frame, text='終端 Terminal')
+        sub_nb.add(term_frame, text=('終端 Terminal' if LANG == 'zh' else 'Terminal'))
         mp_cwd = (Path(self.app.state.project_dir) / 'mintpy'
                   if hasattr(self.app, 'state') else Path.home())
         self._terminal = _TerminalWidget(
@@ -8673,7 +8747,7 @@ class MintPyFrame(ttk.Frame):
             import rasterio
             from rasterio.transform import from_origin
         except ImportError:
-            messagebox.showerror('rasterio', 'rasterio 未安裝：pip install rasterio')
+            messagebox.showerror('rasterio', ('rasterio 未安裝：pip install rasterio' if LANG == 'zh' else 'rasterio not installed: pip install rasterio'))
             return
 
         mp      = Path(self._mp_var.get().strip())
@@ -8683,10 +8757,10 @@ class MintPyFrame(ttk.Frame):
         outpath = self._gt_out_var.get().strip()
 
         if not h5path.exists():
-            messagebox.showerror('Export', f'找不到檔案：{h5path}')
+            messagebox.showerror('Export', (f'找不到檔案：{h5path}' if LANG == 'zh' else f'File not found: {h5path}'))
             return
         if not outpath:
-            messagebox.showerror('Export', '請指定輸出路徑。')
+            messagebox.showerror('Export', ('請指定輸出路徑。' if LANG == 'zh' else 'Please specify an output path.'))
             return
 
         self._gt_status.set('處理中…' if LANG == 'zh' else 'Processing…')
@@ -8777,10 +8851,10 @@ class MintPyFrame(ttk.Frame):
         outpath = self._ts_out_var.get().strip()
 
         if not h5path.exists():
-            messagebox.showerror('Export', f'找不到檔案：{h5path}')
+            messagebox.showerror('Export', (f'找不到檔案：{h5path}' if LANG == 'zh' else f'File not found: {h5path}'))
             return
         if not outpath:
-            messagebox.showerror('Export', '請指定輸出路徑。')
+            messagebox.showerror('Export', ('請指定輸出路徑。' if LANG == 'zh' else 'Please specify an output path.'))
             return
 
         self._ts_status.set('處理中…' if LANG == 'zh' else 'Processing…')
@@ -8860,12 +8934,12 @@ class MintPyFrame(ttk.Frame):
         if cfg.exists():
             self._cfg_text.insert('end', cfg.read_text())
         else:
-            self._cfg_text.insert('end', '(cfg 不存在；請先完成 SNAP 處理)')
+            self._cfg_text.insert('end', ('(cfg 不存在；請先完成 SNAP 處理)' if LANG == 'zh' else '(cfg does not exist; please complete SNAP processing first)'))
 
     def _save_cfg(self):
         mp = Path(self._mp_var.get().strip())
         if not mp.name:
-            messagebox.showerror('Path', '請先設定 MintPy workdir。')
+            messagebox.showerror('Path', ('請先設定 MintPy workdir。' if LANG == 'zh' else 'Please set the MintPy workdir first.'))
             return
         mp.mkdir(parents=True, exist_ok=True)
         cfg = mp / 'S1_smallbaseline.cfg'
@@ -8883,7 +8957,7 @@ class MintPyFrame(ttk.Frame):
         mp  = Path(self._mp_var.get().strip())
         cfg = mp / 'S1_smallbaseline.cfg'
         if not cfg.exists():
-            messagebox.showerror('cfg', 'S1_smallbaseline.cfg 不存在，請先儲存。')
+            messagebox.showerror('cfg', ('S1_smallbaseline.cfg 不存在，請先儲存。' if LANG == 'zh' else 'S1_smallbaseline.cfg does not exist, please save first.'))
             return
         self._status_var.set('')
         self._log.delete('1.0', 'end')
@@ -8958,22 +9032,22 @@ class MintPyFrame(ttk.Frame):
               '-o', 'velocity_deramp.h5'], 'velocity_deramp'),
         ]
         self.app.after(0, self._append_log,
-                       '[deramp對照] 產 velocity_deramp.h5 ...\n')
+                       ('[deramp對照] 產 velocity_deramp.h5 ...\n' if LANG == 'zh' else '[deramp-check] Generating velocity_deramp.h5 ...\n'))
         for cmd, tag in steps:
             try:
                 r = subprocess.run(cmd, cwd=str(mp), env=env,
                                    capture_output=True, text=True)
             except Exception as exc:
                 self.app.after(0, self._append_log,
-                               f'[deramp對照] {tag} 錯誤: {exc}\n')
+                               (f'[deramp對照] {tag} 錯誤: {exc}\n' if LANG == 'zh' else f'[deramp-check] {tag} error: {exc}\n'))
                 return
             if r.returncode != 0:
                 self.app.after(0, self._append_log,
-                               f'[deramp對照] {tag} 失敗: {r.stderr[-200:]}\n')
+                               (f'[deramp對照] {tag} 失敗: {r.stderr[-200:]}\n' if LANG == 'zh' else f'[deramp-check] {tag} failed: {r.stderr[-200:]}\n'))
                 return
         self.app.after(0, self._append_log,
-                       '[deramp對照] ✓ velocity_deramp.h5 完成 '
-                       '(velocity.h5 = demErr-only 為主要輸出)\n')
+                       ('[deramp對照] ✓ velocity_deramp.h5 完成 '
+                       '(velocity.h5 = demErr-only 為主要輸出)\n' if LANG == 'zh' else '[deramp-check] ✓ velocity_deramp.h5 done (velocity.h5 = demErr-only is the primary output)\n'))
 
     def _suggest_mintempCoh_fix(self, cfg_path: Path):
         """Offer to lower minTempCoh when 'Not enough reliable pixels' is detected.
@@ -9009,15 +9083,15 @@ class MintPyFrame(ttk.Frame):
                 pass
 
         hint = (
-            '偵測到錯誤：Not enough reliable pixels\n\n'
+            ('偵測到錯誤：Not enough reliable pixels\n\n'
             '時序相干度（temporal coherence）在目前閾值下，\n'
-            '有效像素不足 100 個（MintPy 最低需求）。\n\n'
-            + (f'【相干度分佈】\n{tc_stats}\n\n' if tc_stats else '')
-            + f'建議將 minTempCoh 改為 {suggested}\n\n'
+            '有效像素不足 100 個（MintPy 最低需求）。\n\n' if LANG == 'zh' else 'Detected error: Not enough reliable pixels\n\nAt the current temporal coherence threshold,\nthere are fewer than 100 valid pixels (the minimum required by MintPy).\n\n')
+            + ((f'【相干度分佈】\n{tc_stats}\n\n' if LANG == 'zh' else f'[Coherence Distribution]\n{tc_stats}\n\n') if tc_stats else '')
+            + (f'建議將 minTempCoh 改為 {suggested}\n\n'
             '同時刪除舊的 network_inversion 輸出，強制重算。\n\n'
-            f'是否套用修復（minTempCoh → {suggested}）並重新執行？'
+            f'是否套用修復（minTempCoh → {suggested}）並重新執行？' if LANG == 'zh' else f'Suggest changing minTempCoh to {suggested}\n\nAlso delete the old network_inversion output and force a recompute.\n\nApply the fix (minTempCoh → {suggested}) and rerun?')
         )
-        ans = messagebox.askquestion('MintPy 錯誤修復建議', hint, icon='warning')
+        ans = messagebox.askquestion(('MintPy 錯誤修復建議' if LANG == 'zh' else 'MintPy Error Fix Suggestion'), hint, icon='warning')
         if ans != 'yes':
             return
         try:
@@ -9055,18 +9129,18 @@ class MintPyFrame(ttk.Frame):
             self._cfg_text.delete('1.0', 'end')
             self._cfg_text.insert('1.0', text)
             self._append_log(
-                f'\n[修復] minTempCoh → {suggested}，'
-                f'已清除 {len(removed)} 個舊輸出，重新執行 MintPy…\n')
+                (f'\n[修復] minTempCoh → {suggested}，'
+                f'已清除 {len(removed)} 個舊輸出，重新執行 MintPy…\n' if LANG == 'zh' else f'\n[fix] minTempCoh → {suggested}, cleared {len(removed)} old output(s), rerunning MintPy…\n'))
             self.app.after(300, self._run_mintpy)
         except Exception as exc:
-            messagebox.showerror('修復失敗', str(exc))
+            messagebox.showerror(('修復失敗' if LANG == 'zh' else 'Fix failed'), str(exc))
 
     def _view_with_basemap(self, save: bool = False):
         """Launch view_basemap.py for velocity.h5 in a background thread."""
         mp = Path(self._mp_var.get().strip())
         vel = mp / 'velocity.h5'
         if not vel.exists():
-            messagebox.showerror('View', f'找不到 {vel}\n請先完成 MintPy 流程。')
+            messagebox.showerror('View', (f'找不到 {vel}\n請先完成 MintPy 流程。' if LANG == 'zh' else f'{vel} not found\nPlease complete the MintPy workflow first.'))
             return
         basemap   = self._basemap_var.get()
         mask_file = str(mp / 'maskTempCoh.h5')
@@ -9091,7 +9165,7 @@ class MintPyFrame(ttk.Frame):
                 cmd += ['--coh-mask', str(coh_file), '--coh-thresh', str(_cohv)]
                 coh_suffix = f'_coh{_cohv:g}'
             elif _cohv is not None:
-                self._append_log(f'[basemap] 找不到 {coh_file}，略過同調遮罩\n')
+                self._append_log((f'[basemap] 找不到 {coh_file}，略過同調遮罩\n' if LANG == 'zh' else f'[basemap] {coh_file} not found, skipping coherence mask\n'))
         if save:
             out_png = str(mp / 'pic' / f'velocity_{basemap}{coh_suffix}.png')
             (mp / 'pic').mkdir(exist_ok=True)
@@ -9110,7 +9184,7 @@ class MintPyFrame(ttk.Frame):
                                f'[basemap error]\n{r.stderr[-400:]}\n')
             elif save:
                 self.app.after(0, self._append_log,
-                               f'[basemap] 已儲存: {out_png}\n')
+                               (f'[basemap] 已儲存: {out_png}\n' if LANG == 'zh' else f'[basemap] Saved: {out_png}\n'))
 
         threading.Thread(target=_run, daemon=True).start()
 
@@ -9172,54 +9246,54 @@ class GNSSFrame(ttk.Frame):
             return str(Path(pd) / 'mintpy') if pd else ''
 
     def _build(self):
-        top = ttk.LabelFrame(self, text='GNSS ↔ InSAR 比對')
+        top = ttk.LabelFrame(self, text=('GNSS ↔ InSAR 比對' if LANG == 'zh' else 'GNSS ↔ InSAR Comparison'))
         top.pack(fill='x', padx=8, pady=6)
         # MintPy 目錄
         r = 0
-        ttk.Label(top, text='MintPy 目錄:').grid(row=r, column=0, sticky='e', padx=4, pady=3)
+        ttk.Label(top, text=('MintPy 目錄:' if LANG == 'zh' else 'MintPy directory:')).grid(row=r, column=0, sticky='e', padx=4, pady=3)
         self._mp_var = tk.StringVar(value=self._mp_default())
         ttk.Entry(top, textvariable=self._mp_var, width=48).grid(row=r, column=1, columnspan=2, sticky='we', padx=4)
         ttk.Button(top, text='...', width=3, command=self._browse_mp
                    ).grid(row=r, column=3, padx=2)
         # GNSS 資料夾 (優先由 MintPy 目錄的上層推 GNSS/, 再退回專案/GNSS)
         r += 1
-        ttk.Label(top, text='GNSS 資料夾:').grid(row=r, column=0, sticky='e', padx=4, pady=3)
+        ttk.Label(top, text=('GNSS 資料夾:' if LANG == 'zh' else 'GNSS folder:')).grid(row=r, column=0, sticky='e', padx=4, pady=3)
         self._gnss_var = tk.StringVar(value=self._derive_gnss())
         ttk.Entry(top, textvariable=self._gnss_var, width=48).grid(row=r, column=1, columnspan=2, sticky='we', padx=4)
         ttk.Button(top, text='...', width=3, command=self._browse_gnss
                    ).grid(row=r, column=3, padx=2)
         # 座標系統
         r += 1
-        ttk.Label(top, text='座標系統:').grid(row=r, column=0, sticky='e', padx=4, pady=3)
+        ttk.Label(top, text=('座標系統:' if LANG == 'zh' else 'Coordinate system:')).grid(row=r, column=0, sticky='e', padx=4, pady=3)
         import gnss_compare as _gc
         self._epsg_names = [n for n, _ in _gc.EPSG_OPTIONS]
         self._epsg_map = {n: e for n, e in _gc.EPSG_OPTIONS}
         self._epsg_var = tk.StringVar(value=self._epsg_names[0])
         ttk.Combobox(top, textvariable=self._epsg_var, values=self._epsg_names,
                      state='readonly', width=30).grid(row=r, column=1, sticky='w', padx=4)
-        ttk.Button(top, text='掃描測站', command=self._scan).grid(row=r, column=2, sticky='w', padx=4)
+        ttk.Button(top, text=('掃描測站' if LANG == 'zh' else 'Scan stations'), command=self._scan).grid(row=r, column=2, sticky='w', padx=4)
         # 參考 / 觀測 測站
         r += 1
-        ttk.Label(top, text='參考測站:').grid(row=r, column=0, sticky='e', padx=4, pady=3)
+        ttk.Label(top, text=('參考測站:' if LANG == 'zh' else 'Reference station:')).grid(row=r, column=0, sticky='e', padx=4, pady=3)
         self._ref_var = tk.StringVar()
         self._ref_cb = ttk.Combobox(top, textvariable=self._ref_var, values=[], state='readonly', width=16)
         self._ref_cb.grid(row=r, column=1, sticky='w', padx=4)
-        ttk.Label(top, text='觀測測站(匯出時序):').grid(row=r, column=2, sticky='e', padx=4)
+        ttk.Label(top, text=('觀測測站(匯出時序):' if LANG == 'zh' else 'Observation station (export time series):')).grid(row=r, column=2, sticky='e', padx=4)
         self._obs_var = tk.StringVar()
         self._obs_cb = ttk.Combobox(top, textvariable=self._obs_var, values=[], state='readonly', width=16)
         self._obs_cb.grid(row=r, column=3, sticky='w', padx=4)
         # 圖下方判讀註解 (預設帶泥炭說明; 可清空或改)
         r += 1
-        ttk.Label(top, text='圖註解:').grid(row=r, column=0, sticky='ne', padx=4, pady=3)
+        ttk.Label(top, text=('圖註解:' if LANG == 'zh' else 'Plot annotation:')).grid(row=r, column=0, sticky='ne', padx=4, pady=3)
         import gnss_compare as _gc2
         self._note_txt = tk.Text(top, height=2, width=60, wrap='word', exportselection=False)
         self._note_txt.insert('1.0', _gc2.DEFAULT_NOTE)
         self._note_txt.grid(row=r, column=1, columnspan=3, sticky='we', padx=4)
         # 執行
         r += 1
-        ttk.Button(top, text='▶ 執行比對 (出圖+表)', command=self._run
+        ttk.Button(top, text=('▶ 執行比對 (出圖+表)' if LANG == 'zh' else '▶ Run Comparison (plot + table)'), command=self._run
                    ).grid(row=r, column=1, sticky='w', padx=4, pady=6)
-        self._status = tk.StringVar(value='選 MintPy/GNSS 目錄 → 掃描測站 → 選參考/觀測 → 執行')
+        self._status = tk.StringVar(value=('選 MintPy/GNSS 目錄 → 掃描測站 → 選參考/觀測 → 執行' if LANG == 'zh' else 'Select MintPy/GNSS directory → Scan stations → Select reference/observation → Run'))
         ttk.Label(top, textvariable=self._status, foreground='#0a0').grid(
             row=r, column=2, columnspan=2, sticky='w')
         top.columnconfigure(1, weight=1)
@@ -9276,7 +9350,7 @@ class GNSSFrame(ttk.Frame):
         import gnss_compare as _gc
         gd = self._gnss_var.get().strip()
         if not gd or not Path(gd).is_dir():
-            self._status.set(f'⚠ GNSS 資料夾無效: {gd or "(空)"}')
+            self._status.set((f'⚠ GNSS 資料夾無效: {gd or "(空)"}' if LANG == 'zh' else f'⚠ Invalid GNSS folder: {gd or "(empty)"}'))
             return
         self._stations = _gc.scan_gnss_dir(gd)
         names = list(self._stations)
@@ -9285,9 +9359,9 @@ class GNSSFrame(ttk.Frame):
         if names:
             self._ref_var.set(names[0])
             self._obs_var.set(names[-1])
-            self._status.set(f'找到 {len(names)} 站: {", ".join(names)}')
+            self._status.set((f'找到 {len(names)} 站: {", ".join(names)}' if LANG == 'zh' else f'Found {len(names)} station(s): {", ".join(names)}'))
         else:
-            self._status.set(f'⚠ 該資料夾無 *.xlsx 測站檔: {gd}')
+            self._status.set((f'⚠ 該資料夾無 *.xlsx 測站檔: {gd}' if LANG == 'zh' else f'⚠ No *.xlsx station files in this folder: {gd}'))
 
     def _run(self):
         mp = self._mp_var.get().strip()
@@ -9295,11 +9369,11 @@ class GNSSFrame(ttk.Frame):
         ref = self._ref_var.get().strip()
         obs = self._obs_var.get().strip()
         if not (mp and gd and ref and obs):
-            self._status.set('⚠ 請先設定目錄並選參考/觀測測站')
+            self._status.set(('⚠ 請先設定目錄並選參考/觀測測站' if LANG == 'zh' else '⚠ Please set the directories and select reference/observation stations first'))
             return
         epsg = self._epsg_map.get(self._epsg_var.get(), 3826)
         note = self._note_txt.get('1.0', 'end-1c').strip()
-        self._status.set('⏳ 比對中...')
+        self._status.set(('⏳ 比對中...' if LANG == 'zh' else '⏳ Comparing...'))
 
         def _work():
             import gnss_compare as _gc
@@ -9309,9 +9383,9 @@ class GNSSFrame(ttk.Frame):
             try:
                 r = _gc.compare_station(mp, gd, ref, obs, epsg=epsg, note=note, log=_log)
                 _gc.refcorrected_velocity_map(mp, gd, ref, epsg=epsg, log=_log)
-                self.app.after(0, self._status.set, '✓ 完成 (圖/表在 mintpy/pic)')
+                self.app.after(0, self._status.set, ('✓ 完成 (圖/表在 mintpy/pic)' if LANG == 'zh' else '✓ Done (plots/tables in mintpy/pic)'))
             except Exception as exc:
-                _log(f'[錯誤] {exc}')
+                _log((f'[錯誤] {exc}' if LANG == 'zh' else f'[error] {exc}'))
                 self.app.after(0, self._status.set, f'✗ {exc}')
         threading.Thread(target=_work, daemon=True).start()
 
@@ -9324,10 +9398,10 @@ class CumDeformFrame(ttk.Frame):
         self._build()
 
     def _build(self):
-        top = ttk.LabelFrame(self, text='累積變形量地圖 (timeseries 各期相對首期)')
+        top = ttk.LabelFrame(self, text=('累積變形量地圖 (timeseries 各期相對首期)' if LANG == 'zh' else 'Cumulative Deformation Map (timeseries, each epoch relative to the first)'))
         top.pack(fill='x', padx=8, pady=6)
         r = 0
-        ttk.Label(top, text='MintPy 目錄:').grid(row=r, column=0, sticky='e', padx=4, pady=3)
+        ttk.Label(top, text=('MintPy 目錄:' if LANG == 'zh' else 'MintPy directory:')).grid(row=r, column=0, sticky='e', padx=4, pady=3)
         try:
             _mp = self.app.tab3._mp_var.get().strip()
         except Exception:
@@ -9338,16 +9412,16 @@ class CumDeformFrame(ttk.Frame):
                    command=lambda: self._mp_var.set(filedialog.askdirectory() or self._mp_var.get())
                    ).grid(row=r, column=3, padx=2)
         r += 1
-        ttk.Label(top, text='Coh 遮罩門檻(temporalCoherence):').grid(row=r, column=0, sticky='e', padx=4)
+        ttk.Label(top, text=('Coh 遮罩門檻(temporalCoherence):' if LANG == 'zh' else 'Coh mask threshold (temporalCoherence):')).grid(row=r, column=0, sticky='e', padx=4)
         self._coh_var = tk.StringVar(value='0.5')
         ttk.Entry(top, textvariable=self._coh_var, width=6).grid(row=r, column=1, sticky='w', padx=4)
-        ttk.Label(top, text='每列欄數:').grid(row=r, column=1, sticky='e', padx=4)
+        ttk.Label(top, text=('每列欄數:' if LANG == 'zh' else 'Columns per row:')).grid(row=r, column=1, sticky='e', padx=4)
         self._ncol_var = tk.StringVar(value='4')
         ttk.Entry(top, textvariable=self._ncol_var, width=4).grid(row=r, column=2, sticky='w', padx=4)
         r += 1
-        ttk.Button(top, text='▶ 產生 4×N 網格圖 + GIF', command=self._run
+        ttk.Button(top, text=('▶ 產生 4×N 網格圖 + GIF' if LANG == 'zh' else '▶ Generate 4×N Grid Plot + GIF'), command=self._run
                    ).grid(row=r, column=1, sticky='w', padx=4, pady=6)
-        self._status = tk.StringVar(value='設定 MintPy 目錄 → 產生')
+        self._status = tk.StringVar(value=('設定 MintPy 目錄 → 產生' if LANG == 'zh' else 'Set MintPy directory → Generate'))
         ttk.Label(top, textvariable=self._status, foreground='#0a0').grid(
             row=r, column=2, columnspan=2, sticky='w')
         top.columnconfigure(1, weight=1)
@@ -9356,13 +9430,13 @@ class CumDeformFrame(ttk.Frame):
     def _run(self):
         mp = self._mp_var.get().strip()
         if not (mp and Path(mp).is_dir()):
-            self._status.set('⚠ MintPy 目錄無效')
+            self._status.set(('⚠ MintPy 目錄無效' if LANG == 'zh' else '⚠ Invalid MintPy directory'))
             return
         try:
             coh = float(self._coh_var.get()); ncol = int(self._ncol_var.get())
         except ValueError:
-            self._status.set('⚠ 門檻/欄數需為數字'); return
-        self._status.set('⏳ 產生中 (含 GIF, 稍候)...')
+            self._status.set(('⚠ 門檻/欄數需為數字' if LANG == 'zh' else '⚠ Threshold/column count must be numeric')); return
+        self._status.set(('⏳ 產生中 (含 GIF, 稍候)...' if LANG == 'zh' else '⏳ Generating (including GIF, please wait)...'))
 
         def _work():
             import gnss_compare as _gc
@@ -9372,9 +9446,9 @@ class CumDeformFrame(ttk.Frame):
             try:
                 out = _gc.cumulative_deformation(mp, coh_thresh=coh, ncol=ncol, log=_log)
                 self.app.after(0, self._status.set,
-                               f'✓ 完成: {Path(out["grid"]).name} + {Path(out["gif"]).name}')
+                               (f'✓ 完成: {Path(out["grid"]).name} + {Path(out["gif"]).name}' if LANG == 'zh' else f'✓ Done: {Path(out["grid"]).name} + {Path(out["gif"]).name}'))
             except Exception as exc:
-                _log(f'[錯誤] {exc}')
+                _log((f'[錯誤] {exc}' if LANG == 'zh' else f'[error] {exc}'))
                 self.app.after(0, self._status.set, f'✗ {exc}')
         threading.Thread(target=_work, daemon=True).start()
 
@@ -9410,8 +9484,8 @@ class Snap2MintPyApp(tk.Tk):
         self.notebook.add(self.tab1, text=_T('tab1'))
         self.notebook.add(self.tab2, text=_T('tab2'))
         self.notebook.add(self.tab3, text=_T('tab3'))
-        self.notebook.add(self.tab4, text='[4] GNSS 比對')
-        self.notebook.add(self.tab5, text='[5] 累積變形')
+        self.notebook.add(self.tab4, text=('[4] GNSS 比對' if LANG == 'zh' else '[4] GNSS Comparison'))
+        self.notebook.add(self.tab5, text=('[5] 累積變形' if LANG == 'zh' else '[5] Cumulative Deformation'))
 
         # Tab 2 & 3 locked until ready; restore if prefs had saved pairs
         self.notebook.tab(1, state='disabled')
@@ -9470,15 +9544,15 @@ class Snap2MintPyApp(tk.Tk):
             return   # 尚有未完成 → 不問 MintPy (Tab2 進度會顯示)
         if bridges:
             messagebox.showwarning(
-                'InSAR 網路有斷點',
-                f'所有 {total} 對干涉已完成, 但網路不連續 — 偵測到 '
+                ('InSAR 網路有斷點' if LANG == 'zh' else 'InSAR Network Has Gaps'),
+                (f'所有 {total} 對干涉已完成, 但網路不連續 — 偵測到 '
                 f'{len(bridges)} 處斷點/孤立子網路。\n\n'
                 f'MintPy SBAS 需要連通的網路。請在基線圖用「增加干涉對」補上'
-                f'橋接 (連接斷開的時段) 後再進入 MintPy。')
+                f'橋接 (連接斷開的時段) 後再進入 MintPy。' if LANG == 'zh' else f'All {total} pairs are done, but the network is not connected — detected {len(bridges)} gap(s)/isolated sub-networks.\n\nMintPy SBAS requires a connected network. Please use "Add pairs" in the baseline plot to add bridging pairs (connecting the disconnected periods) before entering MintPy.'))
             return
         ans = messagebox.askquestion(
-            'InSAR 全部完成',
-            f'所有 {total} 對干涉已完成, 且網路連續無斷點 ✓\n\n要進入 MintPy 嗎?',
+            ('InSAR 全部完成' if LANG == 'zh' else 'InSAR All Done'),
+            (f'所有 {total} 對干涉已完成, 且網路連續無斷點 ✓\n\n要進入 MintPy 嗎?' if LANG == 'zh' else f'All {total} pairs are done, and the network is connected with no gaps ✓\n\nProceed to MintPy?'),
             icon='question')
         if ans == 'yes':
             self.notebook.tab(2, state='normal')
@@ -9564,8 +9638,8 @@ class Snap2MintPyApp(tk.Tk):
     def refresh_baseline_legends(self):
         """依目前線段顏色重算所有基線圖的圖例計數 → 圖例數字與線條同步更新
         (修: edges 即時改色但 Done/Pending 數字不變)。"""
-        order = [('#00cc44', '已完成 Done'), ('#cccccc', '未處理 Pending'),
-                 ('#ff8c00', '處理中 Running'), ('#ff4444', '失敗 Failed')]
+        order = [('#00cc44', ('已完成 Done' if LANG == 'zh' else 'Done')), ('#cccccc', ('未處理 Pending' if LANG == 'zh' else 'Pending')),
+                 ('#ff8c00', ('處理中 Running' if LANG == 'zh' else 'Running')), ('#ff4444', ('失敗 Failed' if LANG == 'zh' else 'Failed'))]
         for tok in list(self._live_baselines):
             try:
                 cv = tok['canvas']

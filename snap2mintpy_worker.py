@@ -45,7 +45,7 @@ _STEP_NAME = {
     'sml': 'smart_ml',
     'snaphu-export': 'snaphu', 'snaphu-run': 'unwrap',
     'snaphu-import': 'unwrap', 'tc-wrapped': 'geocode',
-    'tc-unw': 'geocode', 'mintpy': 'MintPy格式',
+    'tc-unw': 'geocode', 'mintpy': 'MintPy',
 }
 
 
@@ -142,7 +142,7 @@ def main() -> None:
                     help='Ignore existing complete outputs and reprocess '
                          'every step (matches GUI "rerun all" choice)')
     ap.add_argument('--no-make-dem', action='store_true',
-                    help='本機不負責產 dem_tc (叢集中只第一台產, 避免競態)')
+                    help='Local machine does not produce dem_tc (only the first host produces it in a cluster, to avoid race conditions)')
     args = ap.parse_args()
 
     state = AppState()

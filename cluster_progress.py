@@ -103,14 +103,14 @@ def render(config_path: str, t0: float, done0: int, clear: bool = True) -> int:
 
     # 速率 / ETA (以本監控啟動後的觀測窗計算)
     elapsed = time.time() - t0
-    rate_txt, eta_txt = '計算中', '計算中'
+    rate_txt, eta_txt = 'Calculating', 'Calculating'
     if elapsed > 120 and done > done0:
         rate = (done - done0) / (elapsed / 3600.0)  # 對/時
         if rate > 0:
-            rate_txt = f'{rate:.1f} 對/時'
+            rate_txt = f'{rate:.1f} pairs/hr'
             remain = total - done
             eta_h = remain / rate
-            eta_txt = f'~{eta_h:.1f} 小時' if eta_h < 48 else f'~{eta_h/24:.1f} 天'
+            eta_txt = f'~{eta_h:.1f} hr' if eta_h < 48 else f'~{eta_h/24:.1f} days'
 
     running = sum(1 for w in workers
                   if w['alive'] and w['current'] not in ('-', None))
@@ -123,24 +123,24 @@ def render(config_path: str, t0: float, done0: int, clear: bool = True) -> int:
     W = 64
     lines = []
     lines.append('═' * W)
-    lines.append(f'  {name} InSAR 叢集進度{" " * (W - len(name) - 28)}{now}')
+    lines.append(f'  {name} InSAR Cluster Progress{" " * (W - len(name) - 28)}{now}')
     lines.append('═' * W)
     frac = done / total if total else 0
-    lines.append(f'  總進度  [{bar(frac)}]  {done}/{total}  ({frac*100:.1f}%)')
+    lines.append(f'  Total Progress  [{bar(frac)}]  {done}/{total}  ({frac*100:.1f}%)')
     lines.append('─' * W)
-    lines.append(f'  {"機器":<8} {"狀態":<5} {"執行中的對":<22} {"步驟":<10} 本輪')
+    lines.append(f'  {"Machine":<8} {"Status":<5} {"Running Pair":<22} {"Step":<10} This Round')
     for w in workers:
         alive = w['alive']
-        st = '● 跑' if alive else '○ 停'
+        st = '● Run' if alive else '○ Stop'
         cur = w['current'] if alive else '-'
         step = w['step'] if alive else '-'
         lbl = w['label']
         lines.append(f'  {lbl:<8} {st:<5} {cur:<22} {step:<10} {w["done"]}')
     lines.append('─' * W)
-    lines.append(f'  完成 {done} | 進行中 {running} | 剩餘 {remain} | 失敗 {failed_total}')
-    lines.append(f'  速率 {rate_txt}  |  預估剩餘 {eta_txt}')
+    lines.append(f'  Done {done} | Running {running} | Remaining {remain} | Failed {failed_total}')
+    lines.append(f'  Rate {rate_txt}  |  ETA {eta_txt}')
     lines.append('═' * W)
-    lines.append('  (每分鐘更新 · Ctrl+C 結束)')
+    lines.append('  (Updates every minute · Ctrl+C to exit)')
 
     if clear:
         os.system('clear' if os.name != 'nt' else 'cls')
@@ -168,7 +168,7 @@ def main():
                 break
             time.sleep(args.interval)
     except KeyboardInterrupt:
-        print('\n[結束]')
+        print('\n[Exit]')
 
 
 if __name__ == '__main__':
