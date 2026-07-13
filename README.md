@@ -20,6 +20,20 @@ to local SNAP processing.
 
 ![Velocity field example](docs/figs/velocity_example.png)
 
+*Example scene: the Toushe Basin in Yuchi Township, Nantou County, Taiwan —
+known locally as the "living basin". The basin is an ancient lake bed where
+millennia of decomposed aquatic plants accumulated into a peat layer tens of
+meters thick. Peat behaves like a sponge: it swells when saturated and
+compacts when drained. After local farming shifted from paddy rice to dryland
+crops and the main drainage outlet was widened for flood control, the
+groundwater table dropped sharply, and the peat responded with compaction,
+shrinkage, and oxidation — subsidence severe enough to tilt a local farmstead
+off its foundation. The process is hard to reverse: once dried, peat loses its
+ability to re-absorb water and never regains its volume, while the sinking
+basin floor makes drainage ever harder and flooding more likely. The velocity
+field above captures this: subsidence up to ~20 mm/yr concentrated on the peat
+deposit, cross-checked against the co-located GNSS station (TSB2).*
+
 ---
 
 ## Features
