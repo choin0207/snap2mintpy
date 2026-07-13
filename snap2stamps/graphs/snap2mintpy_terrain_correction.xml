@@ -1,0 +1,94 @@
+<graph id="Graph">
+  <version>1.0</version>
+  <node id="Read">
+    <operator>Read</operator>
+    <sources/>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <file>INPUTFILE</file>
+    </parameters>
+  </node>
+  <node id="RangeDopplerTerrainCorrection">
+    <operator>Terrain-Correction</operator>
+    <sources>
+      <sourceProduct refid="Read"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <sourceBands/>
+      <demName>SRTM 1Sec HGT</demName>
+      <externalDEMFile>EXTERNALDEM</externalDEMFile>
+      <externalDEMNoDataValue>0.0</externalDEMNoDataValue>
+      <externalDEMApplyEGM>true</externalDEMApplyEGM>
+      <demResamplingMethod>BILINEAR_INTERPOLATION</demResamplingMethod>
+      <imgResamplingMethod>BILINEAR_INTERPOLATION</imgResamplingMethod>
+      <pixelSpacingInMeter>PIXELSPACING</pixelSpacingInMeter>
+      <pixelSpacingInDegree>0.0</pixelSpacingInDegree>
+      <mapProjection>WGS84(DD)</mapProjection>
+      <!-- alignToStandardGrid=true: 把每個產品的地理編碼網格對齊到固定的全域
+           格網 (原點 0,0 + 固定 pixelSpacing), 使所有對的像素落在同一 lattice。
+           搭配下方 Subset 到固定 AOI 多邊形, 保證整個 stack 尺寸/座標完全一致
+           (修 alignToStandardGrid=false 時各對網格原點隨資料微飄 → 718/719×826/827
+            ±1 像素飄移 → MintPy load_data 尺寸不一致)。改此值後需重跑整個 stack。 -->
+      <alignToStandardGrid>true</alignToStandardGrid>
+      <standardGridOriginX>0.0</standardGridOriginX>
+      <standardGridOriginY>0.0</standardGridOriginY>
+      <nodataValueAtSea>true</nodataValueAtSea>
+      <saveDEM>true</saveDEM>
+      <saveLatLon>false</saveLatLon>
+      <saveIncidenceAngleFromEllipsoid>false</saveIncidenceAngleFromEllipsoid>
+      <saveLocalIncidenceAngle>true</saveLocalIncidenceAngle>
+      <saveProjectedLocalIncidenceAngle>false</saveProjectedLocalIncidenceAngle>
+      <saveSelectedSourceBand>true</saveSelectedSourceBand>
+      <outputComplex>true</outputComplex>
+      <applyRadiometricNormalization>false</applyRadiometricNormalization>
+      <saveSigmaNought>false</saveSigmaNought>
+      <saveGammaNought>false</saveGammaNought>
+      <saveBetaNought>false</saveBetaNought>
+      <incidenceAngleForSigma0>Use projected local incidence angle from DEM</incidenceAngleForSigma0>
+      <incidenceAngleForGamma0>Use projected local incidence angle from DEM</incidenceAngleForGamma0>
+      <auxFile>Latest Auxiliary File</auxFile>
+    </parameters>
+  </node>
+  <!-- Subset to AOI after geocoding: ensures all pairs output identical extents.
+       POLYGON is substituted with the WKT from the GUI's AOI polygon. -->
+  <node id="Subset">
+    <operator>Subset</operator>
+    <sources>
+      <sourceProduct refid="RangeDopplerTerrainCorrection"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <sourceBands/>
+      <region/>
+      <geoRegion>POLYGON</geoRegion>
+      <subSamplingX>1</subSamplingX>
+      <subSamplingY>1</subSamplingY>
+      <fullSwath>false</fullSwath>
+      <tiePointGridNames/>
+      <copyMetadata>true</copyMetadata>
+    </parameters>
+  </node>
+  <node id="Write">
+    <operator>Write</operator>
+    <sources>
+      <sourceProduct refid="Subset"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <file>OUTPUTFILE</file>
+      <formatName>BEAM-DIMAP</formatName>
+    </parameters>
+  </node>
+  <applicationData id="Presentation">
+    <Description/>
+    <node id="Read">
+      <displayPosition x="18.0" y="100.0"/>
+    </node>
+    <node id="RangeDopplerTerrainCorrection">
+      <displayPosition x="200.0" y="100.0"/>
+    </node>
+    <node id="Subset">
+      <displayPosition x="400.0" y="100.0"/>
+    </node>
+    <node id="Write">
+      <displayPosition x="580.0" y="100.0"/>
+    </node>
+  </applicationData>
+</graph>

@@ -1,0 +1,90 @@
+<graph id="Graph">
+  <version>1.0</version>
+  <!-- Inputs: IFGFILES = comma-separated list of per-IW debursted IFG .dim files
+               NRGLOOKS / NAZLOOKS = multilook factors
+               POLYGON = WKT subset polygon -->
+  <node id="ProductSet-Reader">
+    <operator>ProductSet-Reader</operator>
+    <sources/>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <fileList>IFGFILES</fileList>
+    </parameters>
+  </node>
+  <node id="TOPSAR-Merge">
+    <operator>TOPSAR-Merge</operator>
+    <sources>
+      <sourceProduct.1 refid="ProductSet-Reader"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <selectedPolarisations/>
+    </parameters>
+  </node>
+  <node id="TopoPhaseRemoval">
+    <operator>TopoPhaseRemoval</operator>
+    <sources>
+      <sourceProduct refid="TOPSAR-Merge"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <orbitDegree>3</orbitDegree>
+      <demName>SRTM 1Sec HGT</demName>
+      <externalDEMFile/>
+      <externalDEMNoDataValue>0.0</externalDEMNoDataValue>
+      <tileExtensionPercent>100</tileExtensionPercent>
+      <outputTopoPhaseBand>false</outputTopoPhaseBand>
+      <outputElevationBand>true</outputElevationBand>
+      <outputLatLonBands>true</outputLatLonBands>
+    </parameters>
+  </node>
+  <node id="GoldsteinPhaseFiltering">
+    <operator>GoldsteinPhaseFiltering</operator>
+    <sources>
+      <sourceProduct refid="TopoPhaseRemoval"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <alpha>1.0</alpha>
+      <FFTSizeString>64</FFTSizeString>
+      <windowSizeString>3</windowSizeString>
+      <useCoherenceMask>false</useCoherenceMask>
+      <coherenceThreshold>0.2</coherenceThreshold>
+    </parameters>
+  </node>
+  <node id="Multilook">
+    <operator>Multilook</operator>
+    <sources>
+      <sourceProduct refid="GoldsteinPhaseFiltering"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <sourceBands/>
+      <nRgLooks>NRGLOOKS</nRgLooks>
+      <nAzLooks>NAZLOOKS</nAzLooks>
+      <outputIntensity>false</outputIntensity>
+      <grSquarePixel>false</grSquarePixel>
+    </parameters>
+  </node>
+  <node id="Subset">
+    <operator>Subset</operator>
+    <sources>
+      <sourceProduct refid="Multilook"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <sourceBands/>
+      <region/>
+      <geoRegion>POLYGON</geoRegion>
+      <subSamplingX>1</subSamplingX>
+      <subSamplingY>1</subSamplingY>
+      <fullSwath>false</fullSwath>
+      <tiePointGridNames/>
+      <copyMetadata>true</copyMetadata>
+    </parameters>
+  </node>
+  <node id="Write">
+    <operator>Write</operator>
+    <sources>
+      <sourceProduct refid="Subset"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <file>OUTPUTFILE</file>
+      <formatName>BEAM-DIMAP</formatName>
+    </parameters>
+  </node>
+</graph>

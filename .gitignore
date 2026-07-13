@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.log
+hs_err_pid*.log
+output_data/
+*.h5
+*.dim
+*.data/
+Thumbs.db
+@eaDir/

@@ -1,0 +1,84 @@
+<graph id="Graph">
+  <version>1.0</version>
+  <!-- Single-IW Stage-2 filter: reads one debursted ifg (_ifg.dim from
+       snap2mintpy_ifg_deburst*), then Multilook -> TopoPhaseRemoval ->
+       Goldstein -> Subset. Goldstein runs on MULTILOOKED data (low memory),
+       matching the multi-IW mergeIW path. Splitting Stage-1 (coreg+ESD+ifg)
+       off into snap2mintpy_ifg_deburst* avoids the full-res Goldstein heap bomb.
+       Inputs: INPUTFILE = _ifg.dim ; NRGLOOKS/NAZLOOKS ; EXTERNALDEM ; POLYGON -->
+  <node id="Read">
+    <operator>Read</operator>
+    <sources/>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <file>INPUTFILE</file>
+    </parameters>
+  </node>
+  <node id="Multilook">
+    <operator>Multilook</operator>
+    <sources>
+      <sourceProduct refid="Read"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <sourceBands/>
+      <nRgLooks>NRGLOOKS</nRgLooks>
+      <nAzLooks>NAZLOOKS</nAzLooks>
+      <outputIntensity>false</outputIntensity>
+      <grSquarePixel>false</grSquarePixel>
+    </parameters>
+  </node>
+  <node id="TopoPhaseRemoval">
+    <operator>TopoPhaseRemoval</operator>
+    <sources>
+      <sourceProduct refid="Multilook"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <orbitDegree>3</orbitDegree>
+      <demName>External DEM</demName>
+      <externalDEMFile>EXTERNALDEM</externalDEMFile>
+      <externalDEMNoDataValue>0.0</externalDEMNoDataValue>
+      <tileExtensionPercent>100</tileExtensionPercent>
+      <outputTopoPhaseBand>false</outputTopoPhaseBand>
+      <outputElevationBand>true</outputElevationBand>
+      <outputLatLonBands>true</outputLatLonBands>
+    </parameters>
+  </node>
+  <node id="GoldsteinPhaseFiltering">
+    <operator>GoldsteinPhaseFiltering</operator>
+    <sources>
+      <sourceProduct refid="TopoPhaseRemoval"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <alpha>1.0</alpha>
+      <FFTSizeString>64</FFTSizeString>
+      <windowSizeString>3</windowSizeString>
+      <useCoherenceMask>false</useCoherenceMask>
+      <coherenceThreshold>0.2</coherenceThreshold>
+    </parameters>
+  </node>
+  <node id="Subset">
+    <operator>Subset</operator>
+    <sources>
+      <sourceProduct refid="GoldsteinPhaseFiltering"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <sourceBands/>
+      <region/>
+      <geoRegion>POLYGON</geoRegion>
+      <subSamplingX>1</subSamplingX>
+      <subSamplingY>1</subSamplingY>
+      <fullSwath>false</fullSwath>
+      <tiePointGridNames/>
+      <copyMetadata>true</copyMetadata>
+    </parameters>
+  </node>
+  <node id="Write">
+    <operator>Write</operator>
+    <sources>
+      <sourceProduct refid="Subset"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <file>OUTPUTFILE</file>
+      <formatName>BEAM-DIMAP</formatName>
+    </parameters>
+  </node>
+</graph>
